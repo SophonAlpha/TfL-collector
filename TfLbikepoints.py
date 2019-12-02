@@ -33,21 +33,31 @@ def get_bike_points(cfg):
 
 
 def save_to_database(db, data):
-    nth_entry = 30
     logger.info('saving data sets to database')
     time_stamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+    max_sets = len(data)
+    nth_entry = max_sets // 20
     for idx, entry in enumerate(data):
+        # flatten data structure
         db_data = dict(id=entry['id'],
                        commonName=entry['commonName'],
                        lon=entry['lon'], lat=entry['lat'],)
         for prop in entry['additionalProperties']:
             db_data[prop['key']] = prop['value']
             db_data[prop['key'] + '_modified'] = prop['modified']
+        # convert type for some attributes
+        db_data['NbBikes'] = int(db_data['NbBikes'])
+        db_data['NbDocks'] = int(db_data['NbDocks'])
+        db_data['NbEmptyDocks'] = int(db_data['NbEmptyDocks'])
+        db_data['Locked'] = db_data['Locked'] in ['True', 'true']
+        db_data['Temporary'] = db_data['Temporary'] in ['True', 'true']
+        # write to database
         data_json = [{
             'measurement': db_data['id'],
             'time': time_stamp,
             'fields': db_data
         }]
         db.write(data_json)
-        if (idx + 1) % nth_entry == 0 or (idx + 1) == len(data):
-            logger.info('{} data sets written to database'.format(idx + 1))
+        if (idx + 1) % nth_entry == 0 or (idx + 1) == max_sets:
+            logger.info('{} of {} data sets written '
+                        'to database'.format(idx + 1, max_sets))

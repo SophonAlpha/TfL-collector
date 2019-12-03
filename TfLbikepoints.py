@@ -7,7 +7,6 @@ import database
 import requests
 import datetime
 
-
 logger = logging.getLogger('MyLogger')
 
 
@@ -39,23 +38,39 @@ def save_to_database(db, data):
     nth_entry = max_sets // 20
     for idx, entry in enumerate(data):
         # flatten data structure
-        db_data = dict(id=entry['id'],
-                       commonName=entry['commonName'],
-                       lon=entry['lon'], lat=entry['lat'],)
+        fields = dict(
+            id=entry['id'],
+            commonName=entry['commonName'],
+            lon=entry['lon'], lat=entry['lat'],
+        )
         for prop in entry['additionalProperties']:
-            db_data[prop['key']] = prop['value']
-            db_data[prop['key'] + '_modified'] = prop['modified']
+            fields[prop['key']] = prop['value']
+            fields[prop['key'] + '_modified'] = prop['modified']
         # convert type for some attributes
-        db_data['NbBikes'] = int(db_data['NbBikes'])
-        db_data['NbDocks'] = int(db_data['NbDocks'])
-        db_data['NbEmptyDocks'] = int(db_data['NbEmptyDocks'])
-        db_data['Locked'] = db_data['Locked'] in ['True', 'true']
-        db_data['Temporary'] = db_data['Temporary'] in ['True', 'true']
+        fields['NbBikes'] = int(fields['NbBikes'])
+        fields['NbDocks'] = int(fields['NbDocks'])
+        fields['NbEmptyDocks'] = int(fields['NbEmptyDocks'])
+        fields['Locked'] = fields['Locked'] in ['True', 'true']
+        fields['Installed'] = fields['Installed'] in ['True', 'true']
+        fields['Temporary'] = fields['Temporary'] in ['True', 'true']
+        # add calculated data
+        fields['BrokenDocks'] = fields['NbDocks'] - \
+                                fields['NbBikes'] - fields['NbEmptyDocks']
+        fields['percentageBikes'] = fields['NbBikes'] / fields['NbDocks']
+        fields['percentageBrokenDocks'] = fields['BrokenDocks'] / \
+                                          fields['NbDocks']
+
+        # some fields are tags
+        tags = {}
+        for key in ['TerminalName', 'commonName', 'id']:
+            tags[key] = fields[key]
+            fields.pop(key, None)
         # write to database
         data_json = [{
-            'measurement': db_data['id'],
+            'measurement': 'BikePoints',
+            "tags": tags,
             'time': time_stamp,
-            'fields': db_data
+            'fields': fields
         }]
         db.write(data_json)
         if (idx + 1) % nth_entry == 0 or (idx + 1) == max_sets:

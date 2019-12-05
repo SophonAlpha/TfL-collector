@@ -28,18 +28,21 @@ def measurement(cfg):
 
 
 def get_previous_measurement(db):
-    # TODO: check what is resturned if no data is in measurement
     query = 'SELECT "NbDocks", "NbBikes", "NbEmptyDocks", "BrokenDocks" ' \
             'FROM "BikePoints" GROUP BY id ORDER BY DESC LIMIT 1;'
     result = db.client.query(query)
+    result_series = result.raw.get('series', None)
     prev_data = {}
-    for bike_point in result.raw['series']:
-        bike_point_id = bike_point['tags']['id']
-        cols = bike_point['columns']
-        for values in bike_point['values']:
-            vals = values
-        fields = dict(zip(cols, vals))
-        prev_data[bike_point_id] = fields
+    if result_series:
+        for bike_point in result_series:
+            bike_point_id = bike_point['tags']['id']
+            cols = bike_point['columns']
+            for values in bike_point['values']:
+                vals = values
+            fields = dict(zip(cols, vals))
+            prev_data[bike_point_id] = fields
+    else:
+        prev_data = None
     return prev_data
 
 
@@ -89,17 +92,23 @@ def calculate_fields(fields, prev_data):
                             fields['NbBikes'] - fields['NbEmptyDocks']
     fields['percentageBikes'] = fields['NbBikes'] / fields['NbDocks']
     fields['percentageBrokenDocks'] = fields['BrokenDocks'] / fields['NbDocks']
-    fields['delta_NbDocks'] = prev_data[fields['id']]['NbDocks'] - \
-                              fields['NbDocks']
+    if prev_data:
+        fields['delta_NbDocks'] = prev_data[fields['id']]['NbDocks'] - \
+                                  fields['NbDocks']
+        fields['delta_NbBikes'] = prev_data[fields['id']]['NbBikes'] - \
+                                  fields['NbBikes']
+        fields['delta_NbEmptyDocks'] = prev_data[fields['id']]['NbEmptyDocks'] - \
+                                       fields['NbEmptyDocks']
+        fields['delta_BrokenDocks'] = prev_data[fields['id']]['BrokenDocks'] - \
+                                      fields['BrokenDocks']
+    else:
+        fields['delta_NbDocks'] = 0
+        fields['delta_NbBikes'] = 0
+        fields['delta_NbEmptyDocks'] = 0
+        fields['delta_BrokenDocks'] = 0
     fields['abs_NbDocks'] = abs(fields['delta_NbDocks'])
-    fields['delta_NbBikes'] = prev_data[fields['id']]['NbBikes'] - \
-                              fields['NbBikes']
     fields['abs_NbBikes'] = abs(fields['delta_NbBikes'])
-    fields['delta_NbEmptyDocks'] = prev_data[fields['id']]['NbEmptyDocks'] - \
-                                   fields['NbEmptyDocks']
     fields['abs_NbEmptyDocks'] = abs(fields['delta_NbEmptyDocks'])
-    fields['delta_BrokenDocks'] = prev_data[fields['id']]['BrokenDocks'] - \
-                                  fields['BrokenDocks']
     fields['abs_BrokenDocks'] = abs(fields['delta_BrokenDocks'])
     return fields
 

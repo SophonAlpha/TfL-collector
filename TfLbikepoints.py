@@ -18,31 +18,28 @@ def measurement(cfg):
                            dbuser_password=cfg['database']['password'],
                            dbname=cfg['database']['name'])
     prev_data = get_previous_measurement(db)
-    data = get_bike_points(cfg)
+    cur_data = get_bike_points(cfg)
     time_stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
-    max_sets = len(data)
-    nth_entry = max_sets // 20
-    for idx, entry in enumerate(data):
-        fields, tags = get_fields_tags(entry)
+    for entry in process_list(cur_data):
+        fields = build_fields(entry)
+        fields = calculate_fields(fields, prev_data)
+        tags = build_tags(fields, ['TerminalName', 'commonName', 'id'])
         save_to_database(db, 'BikePoints', time_stamp, tags, fields)
-        if (idx + 1) % nth_entry == 0 or (idx + 1) == max_sets:
-            logger.info('{} of {} data sets written '
-                        'to database'.format(idx + 1, max_sets))
-    save_to_database(db, data)
 
 
 def get_previous_measurement(db):
-    query = 'SELECT "NbDocks", "NbBikes", "NbEmptyDocks" FROM "BikePoints" ' \
-            'GROUP BY id ORDER BY DESC LIMIT 1;'
+    # TODO: check what is resturned if no data is in measurement
+    query = 'SELECT "NbDocks", "NbBikes", "NbEmptyDocks", "BrokenDocks" ' \
+            'FROM "BikePoints" GROUP BY id ORDER BY DESC LIMIT 1;'
     result = db.client.query(query)
-    prev_data = []
+    prev_data = {}
     for bike_point in result.raw['series']:
         bike_point_id = bike_point['tags']['id']
         cols = bike_point['columns']
         for values in bike_point['values']:
             vals = values
         fields = dict(zip(cols, vals))
-        prev_data.append({bike_point_id: fields})
+        prev_data[bike_point_id] = fields
     return prev_data
 
 
@@ -57,7 +54,17 @@ def get_bike_points(cfg):
     return data
 
 
-def get_fields_tags(entry):
+def process_list(data):
+    max_sets = len(data)
+    nth_entry = max_sets // 20
+    for idx, entry in enumerate(data):
+        if (idx + 1) % nth_entry == 0 or (idx + 1) == max_sets:
+            logger.info('{} of {} data sets written '
+                        'to database'.format(idx + 1, max_sets))
+        yield entry
+
+
+def build_fields(entry):
     fields = dict(
         id=entry['id'],
         commonName=entry['commonName'],
@@ -73,18 +80,36 @@ def get_fields_tags(entry):
     fields['Locked'] = fields['Locked'] in ['True', 'true']
     fields['Installed'] = fields['Installed'] in ['True', 'true']
     fields['Temporary'] = fields['Temporary'] in ['True', 'true']
+    return fields
+
+
+def calculate_fields(fields, prev_data):
     # add calculated data
     fields['BrokenDocks'] = fields['NbDocks'] - \
                             fields['NbBikes'] - fields['NbEmptyDocks']
     fields['percentageBikes'] = fields['NbBikes'] / fields['NbDocks']
-    fields['percentageBrokenDocks'] = fields['BrokenDocks'] / \
-                                      fields['NbDocks']
+    fields['percentageBrokenDocks'] = fields['BrokenDocks'] / fields['NbDocks']
+    fields['delta_NbDocks'] = prev_data[fields['id']]['NbDocks'] - \
+                              fields['NbDocks']
+    fields['abs_NbDocks'] = abs(fields['delta_NbDocks'])
+    fields['delta_NbBikes'] = prev_data[fields['id']]['NbBikes'] - \
+                              fields['NbBikes']
+    fields['abs_NbBikes'] = abs(fields['delta_NbBikes'])
+    fields['delta_NbEmptyDocks'] = prev_data[fields['id']]['NbEmptyDocks'] - \
+                                   fields['NbEmptyDocks']
+    fields['abs_NbEmptyDocks'] = abs(fields['delta_NbEmptyDocks'])
+    fields['delta_BrokenDocks'] = prev_data[fields['id']]['BrokenDocks'] - \
+                                  fields['BrokenDocks']
+    fields['abs_BrokenDocks'] = abs(fields['delta_BrokenDocks'])
+    return fields
+
+
+def build_tags(fields, fields_to_tags):
     # some fields are tags
     tags = {}
-    for key in ['TerminalName', 'commonName', 'id']:
+    for key in fields_to_tags:
         tags[key] = fields[key]
-        fields.pop(key, None)  # remove fields that are now tags
-    return fields, tags
+    return tags
 
 
 def save_to_database(db, measurement, time_stamp, tags, fields):

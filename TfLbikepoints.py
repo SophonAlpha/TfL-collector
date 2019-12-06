@@ -6,6 +6,7 @@ import logging.handlers
 import database
 import requests
 import datetime
+from statistics import mean
 
 
 logger = logging.getLogger('MyLogger')
@@ -20,15 +21,19 @@ def measurement(cfg):
     prev_data = get_previous_measurement(db)
     cur_data = get_bike_points(cfg)
     time_stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
+    total_fields = {}
     for entry in process_list(cur_data):
         fields = build_fields(entry)
         fields = calculate_fields(fields, prev_data)
         tags = build_tags(fields, ['TerminalName', 'commonName', 'id'])
+        total_fields = calculate_total_fields(fields, total_fields)
         save_to_database(db, 'BikePoints', time_stamp, tags, fields)
+    tags = {}
+    save_to_database(db, 'BikePoints', time_stamp, tags, total_fields)
 
 
 def get_previous_measurement(db):
-    query = 'SELECT "NbDocks", "NbBikes", "NbEmptyDocks", "BrokenDocks" ' \
+    query = 'SELECT "NbDocks", "NbBikes", "NbEmptyDocks", "NbBrokenDocks" ' \
             'FROM "BikePoints" GROUP BY id ORDER BY DESC LIMIT 1;'
     result = db.client.query(query)
     result_series = result.raw.get('series', None)
@@ -88,10 +93,10 @@ def build_fields(entry):
 
 def calculate_fields(fields, prev_data):
     # add calculated data
-    fields['BrokenDocks'] = fields['NbDocks'] - \
-                            fields['NbBikes'] - fields['NbEmptyDocks']
-    fields['percentageBikes'] = fields['NbBikes'] / fields['NbDocks']
-    fields['percentageBrokenDocks'] = fields['BrokenDocks'] / fields['NbDocks']
+    fields['NbBrokenDocks'] = fields['NbDocks'] - \
+                              fields['NbBikes'] - fields['NbEmptyDocks']
+    fields['percentage_NbBikes'] = fields['NbBikes'] / fields['NbDocks']
+    fields['percentage_NbBrokenDocks'] = fields['NbBrokenDocks'] / fields['NbDocks']
     if prev_data:
         fields['delta_NbDocks'] = prev_data[fields['id']]['NbDocks'] - \
                                   fields['NbDocks']
@@ -99,18 +104,33 @@ def calculate_fields(fields, prev_data):
                                   fields['NbBikes']
         fields['delta_NbEmptyDocks'] = prev_data[fields['id']]['NbEmptyDocks'] - \
                                        fields['NbEmptyDocks']
-        fields['delta_BrokenDocks'] = prev_data[fields['id']]['BrokenDocks'] - \
-                                      fields['BrokenDocks']
+        fields['delta_NbBrokenDocks'] = prev_data[fields['id']]['NbBrokenDocks'] - \
+                                        fields['NbBrokenDocks']
     else:
         fields['delta_NbDocks'] = 0
         fields['delta_NbBikes'] = 0
         fields['delta_NbEmptyDocks'] = 0
-        fields['delta_BrokenDocks'] = 0
+        fields['delta_NbBrokenDocks'] = 0
     fields['abs_NbDocks'] = abs(fields['delta_NbDocks'])
     fields['abs_NbBikes'] = abs(fields['delta_NbBikes'])
     fields['abs_NbEmptyDocks'] = abs(fields['delta_NbEmptyDocks'])
-    fields['abs_BrokenDocks'] = abs(fields['delta_BrokenDocks'])
+    fields['abs_NbBrokenDocks'] = abs(fields['delta_NbBrokenDocks'])
     return fields
+
+
+def calculate_total_fields(fields, total_fields):
+    field_keys = ['NbBrokenDocks', 'NbBikes', 'NbDocks', 'NbEmptyDocks',
+                  'abs_NbBrokenDocks', 'abs_NbBikes', 'abs_NbDocks', 'abs_NbEmptyDocks',
+                  'delta_NbBrokenDocks', 'delta_NbBikes', 'delta_NbDocks', 'delta_NbEmptyDocks']
+    for key in field_keys:
+        total_fields['total_' + key] = total_fields.get('total_' + key, 0) + fields[key]
+    total_fields['total_percentage_NbBikes'] = \
+        mean([total_fields.get('total_percentage_NbBikes', fields['percentage_NbBikes']),
+        fields['percentage_NbBikes']])
+    total_fields['total_percentage_NbBrokenDocks'] = \
+        mean([total_fields.get('total_percentage_NbBrokenDocks', fields['percentage_NbBrokenDocks']),
+        fields['percentage_NbBrokenDocks']])
+    return total_fields
 
 
 def build_tags(fields, fields_to_tags):

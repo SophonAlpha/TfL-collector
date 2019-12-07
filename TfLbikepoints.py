@@ -150,6 +150,7 @@ def calculate_totals(data_sets):
                   'abs_NbBrokenDocks', 'abs_NbBikes', 'abs_NbDocks', 'abs_NbEmptyDocks',
                   'delta_NbBrokenDocks', 'delta_NbBikes', 'delta_NbDocks', 'delta_NbEmptyDocks']
     total_fields = {}
+    total_fields['total_BikeStations'] = len(data_sets)
     for key in field_keys:
         values = [fields[key] for fields, _ in data_sets]
         total_fields['total_' + key] = sum(values)

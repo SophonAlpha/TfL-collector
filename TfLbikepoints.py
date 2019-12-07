@@ -21,15 +21,17 @@ def measurement(cfg):
     prev_data = get_previous_measurement(db)
     cur_data = get_bike_points(cfg)
     time_stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
-    total_fields = {}
-    for entry in process_list(cur_data):
+    data_sets = []
+    for entry in cur_data:
         fields = build_fields(entry)
         fields = calculate_fields(fields, prev_data)
         tags = build_tags(fields, ['TerminalName', 'commonName', 'id'])
-        total_fields = calculate_total_fields(fields, total_fields)
-        save_to_database(db, 'BikePoints', time_stamp, tags, fields)
+        data_sets.append((fields, tags))
+    save_data_set(db, data_sets, 'bike point', time_stamp)
+    total_fields = calculate_totals(data_sets)
     tags = {}
-    save_to_database(db, 'BikePoints', time_stamp, tags, total_fields)
+    data_sets = [(total_fields, tags)]
+    save_data_set(db, data_sets, 'bike points total', time_stamp)
 
 
 def get_previous_measurement(db):
@@ -62,16 +64,6 @@ def get_bike_points(cfg):
     return data
 
 
-def process_list(data):
-    max_sets = len(data)
-    nth_entry = max_sets // 20
-    for idx, entry in enumerate(data):
-        if (idx + 1) % nth_entry == 0 or (idx + 1) == max_sets:
-            logger.info('{} of {} data sets written '
-                        'to database'.format(idx + 1, max_sets))
-        yield entry
-
-
 def build_fields(entry):
     fields = dict(
         id=entry['id'],
@@ -95,8 +87,14 @@ def calculate_fields(fields, prev_data):
     # add calculated data
     fields['NbBrokenDocks'] = fields['NbDocks'] - \
                               fields['NbBikes'] - fields['NbEmptyDocks']
-    fields['percentage_NbBikes'] = fields['NbBikes'] / fields['NbDocks']
-    fields['percentage_NbBrokenDocks'] = fields['NbBrokenDocks'] / fields['NbDocks']
+    if fields['NbDocks'] == 0:
+        logger.error('value of \'NbDocks\' attribute is zero. '
+                     'received fields data = {}'.format(fields))
+    else:
+        fields['percentage_NbBikes'] = \
+            fields['NbBikes'] / fields['NbDocks']
+        fields['percentage_NbBrokenDocks'] = \
+            fields['NbBrokenDocks'] / fields['NbDocks']
     if prev_data:
         fields['delta_NbDocks'] = prev_data[fields['id']]['NbDocks'] - \
                                   fields['NbDocks']
@@ -118,27 +116,22 @@ def calculate_fields(fields, prev_data):
     return fields
 
 
-def calculate_total_fields(fields, total_fields):
-    field_keys = ['NbBrokenDocks', 'NbBikes', 'NbDocks', 'NbEmptyDocks',
-                  'abs_NbBrokenDocks', 'abs_NbBikes', 'abs_NbDocks', 'abs_NbEmptyDocks',
-                  'delta_NbBrokenDocks', 'delta_NbBikes', 'delta_NbDocks', 'delta_NbEmptyDocks']
-    for key in field_keys:
-        total_fields['total_' + key] = total_fields.get('total_' + key, 0) + fields[key]
-    total_fields['total_percentage_NbBikes'] = \
-        mean([total_fields.get('total_percentage_NbBikes', fields['percentage_NbBikes']),
-        fields['percentage_NbBikes']])
-    total_fields['total_percentage_NbBrokenDocks'] = \
-        mean([total_fields.get('total_percentage_NbBrokenDocks', fields['percentage_NbBrokenDocks']),
-        fields['percentage_NbBrokenDocks']])
-    return total_fields
-
-
 def build_tags(fields, fields_to_tags):
     # some fields are tags
     tags = {}
     for key in fields_to_tags:
         tags[key] = fields[key]
     return tags
+
+
+def save_data_set(db, data_set, set_name, time_stamp):
+    max_sets = len(data_set)
+    nth_entry = max(max_sets // 20, 1)
+    for idx, (fields, tags) in enumerate(data_set):
+        if (idx + 1) % nth_entry == 0 or (idx + 1) == max_sets:
+            logger.info('{} of {} {} data sets written '
+                        'to database'.format(idx + 1, max_sets, set_name))
+        save_to_database(db, 'BikePoints', time_stamp, tags, fields)
 
 
 def save_to_database(db, measurement, time_stamp, tags, fields):
@@ -150,3 +143,18 @@ def save_to_database(db, measurement, time_stamp, tags, fields):
         'fields': fields
     }]
     db.write(data_json)
+
+
+def calculate_totals(data_sets):
+    field_keys = ['NbBrokenDocks', 'NbBikes', 'NbDocks', 'NbEmptyDocks',
+                  'abs_NbBrokenDocks', 'abs_NbBikes', 'abs_NbDocks', 'abs_NbEmptyDocks',
+                  'delta_NbBrokenDocks', 'delta_NbBikes', 'delta_NbDocks', 'delta_NbEmptyDocks']
+    total_fields = {}
+    for key in field_keys:
+        values = [fields[key] for fields, _ in data_sets]
+        total_fields['total_' + key] = sum(values)
+    total_fields['total_percentage_NbBikes'] = \
+        total_fields['total_NbBikes'] / total_fields['total_NbDocks']
+    total_fields['total_percentage_NbBrokenDocks'] = \
+        total_fields['total_NbBrokenDocks'] / total_fields['total_NbDocks']
+    return total_fields

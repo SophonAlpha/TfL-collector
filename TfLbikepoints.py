@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 
 
-import logging.handlers
+import logging
 import database
 import requests
 import datetime
 from statistics import mean
 
 
-logger = logging.getLogger('MyLogger')
+logger = logging.getLogger()
 
 
 def measurement(cfg):
@@ -93,9 +93,11 @@ def calculate_fields(fields, prev_data):
     else:
         fields['percentage_NbBikes'] = \
             fields['NbBikes'] / fields['NbDocks']
+        fields['percentage_NbEmptyDocks'] = \
+            fields['NbEmptyDocks'] / fields['NbDocks']
         fields['percentage_NbBrokenDocks'] = \
             fields['NbBrokenDocks'] / fields['NbDocks']
-    if prev_data:
+    if prev_data and prev_data.get(fields['id'], False):
         fields['delta_NbDocks'] = prev_data[fields['id']]['NbDocks'] - \
                                   fields['NbDocks']
         fields['delta_NbBikes'] = prev_data[fields['id']]['NbBikes'] - \
@@ -154,6 +156,8 @@ def calculate_totals(data_sets):
     for key in field_keys:
         values = [fields[key] for fields, _ in data_sets]
         total_fields['total_' + key] = sum(values)
+    total_fields['total_percentage_NbEmptyDocks'] = \
+        total_fields['total_NbEmptyDocks'] / total_fields['total_NbDocks']
     total_fields['total_percentage_NbBikes'] = \
         total_fields['total_NbBikes'] / total_fields['total_NbDocks']
     total_fields['total_percentage_NbBrokenDocks'] = \

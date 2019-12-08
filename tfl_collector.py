@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 
 
+import os
+import logging
+import urllib3
 import argparse
 import yaml
-import logging.handlers
-import urllib3
 import TfLbikepoints
 
 
@@ -14,27 +15,47 @@ import TfLbikepoints
 # self-signed certificate for HTTPS.
 urllib3.disable_warnings()
 
+# initialise global variable for logging object
+logger = None
 
-def main():
+# set global variable to identify whether code runs locally or s AWS lambda
+# function
+REGION = os.environ.get('AWS_REGION', 'local')
+
+
+def main(event=None, context=None):
+    global logger
+    logger = set_up_logging()
+    try:
+        take_measurement()
+    except Exception:
+        # log any exception, required for troubleshooting
+        logger.exception('an unhandled exception occurred:')
+
+
+def set_up_logging():
+    my_logger = logging.getLogger()
+    my_logger.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(filename)s - '
+        '%(funcName)s - %(message)s')
+    if REGION == 'local':
+        # if the code runs locally log to rotating log file
+        handler = logging.handlers.RotatingFileHandler('tfl_collector.log',
+                                                        maxBytes=104857600,
+                                                        backupCount=1)
+        my_logger.addHandler(handler)
+    for handler in my_logger.handlers:
+        handler.setFormatter(formatter)
+    return my_logger
+
+
+def take_measurement():
     logger.info('---------- script started ------------')
     args = parse_args()
     cfg = load_config(args.config)
     TfLbikepoints.measurement(cfg)
     logger.info('---------- script completed ----------')
-
-
-def set_up_logging():
-    # set up logging, rotating log file, max. file size
-    my_logger = logging.getLogger('MyLogger')
-    my_logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - '
-                                  '%(filename)s - %(funcName)s - %(message)s')
-    handler = logging.handlers.RotatingFileHandler('tfl_collector.log',
-                                                   maxBytes=104857600,
-                                                   backupCount=1)
-    handler.setFormatter(formatter)
-    my_logger.addHandler(handler)
-    return my_logger
 
 
 def parse_args():
@@ -55,5 +76,4 @@ def load_config(config):
 
 
 if __name__ == '__main__':
-    logger = set_up_logging()
     main()

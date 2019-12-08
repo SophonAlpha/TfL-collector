@@ -6,7 +6,7 @@ from influxdb import InfluxDBClient
 import requests
 
 
-logger = logging.getLogger('MyLogger')
+logger = logging.getLogger()
 
 
 class Database:

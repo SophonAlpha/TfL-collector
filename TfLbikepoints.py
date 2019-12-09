@@ -25,7 +25,10 @@ def measurement(cfg):
     for entry in cur_data:
         fields = build_fields(entry)
         fields = calculate_fields(fields, prev_data)
-        tags = build_tags(fields, ['TerminalName', 'commonName', 'id'])
+        tags = {}
+        # Tags deactivated. Believed the tags create series cardinality that
+        # causes out-of-memory error on small AWS Lightsail instance.
+        # tags = build_tags(fields, ['TerminalName', 'commonName', 'id'])
         data_sets.append((fields, tags))
     save_data_set(db, data_sets, 'bike point', time_stamp)
     total_fields = calculate_totals(data_sets)

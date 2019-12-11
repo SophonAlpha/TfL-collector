@@ -3,11 +3,13 @@
 
 
 import os
+import boto3
 import logging.handlers
 import urllib3
 import argparse
 import yaml
 import TfLbikepoints
+from base64 import b64decode
 
 
 # Disable warnings for "Unverified HTTPS request is being made. Adding
@@ -52,8 +54,13 @@ def set_up_logging():
 
 def take_measurement():
     logger.info('---------- script started ------------')
-    args = parse_args()
-    cfg = load_config(args.config)
+    if REGION == 'local':
+        # read from local config file
+        args = parse_args()
+        cfg = load_config(args.config)
+    else:
+        # read from environment variables
+        cfg = load_env_config()
     TfLbikepoints.measurement(cfg)
     logger.info('---------- script completed ----------')
 
@@ -68,11 +75,28 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_config(config):
+def load_file_config(config):
     logger.info('reading configuration file')
     with open(config, 'r') as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
     return cfg
+
+
+def load_env_config():
+    cfg['TfL_API']['app_key'] = env_decrypt('TfLAPI_appkey')
+    cfg['TfL_API']['app_id'] = env_decrypt('TfLAPI_appid')
+    cfg['database']['host'] = env_decrypt('database_host')
+    cfg['database']['port'] = env_decrypt('database_port')
+    cfg['database']['user'] = env_decrypt('database_user')
+    cfg['database']['password'] = env_decrypt('database_password')
+    cfg['database']['name'] = env_decrypt('database_name')
+    return cfg
+
+
+def env_decrypt(var_encrypted):
+    cipher_text_blob = b64decode(var_encrypted)
+    var_decrypted = boto3.client('kms').decrypt(CiphertextBlob=cipher_text_blob)['Plaintext']
+    return var_decrypted
 
 
 if __name__ == '__main__':

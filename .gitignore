@@ -1,5 +1,6 @@
 .idea/*
 .pytest_cache/
+AWS lambda package/
 *pycache*
 *.pyc
 *.log

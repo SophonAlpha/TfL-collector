@@ -83,13 +83,13 @@ def load_file_config(config):
 
 
 def load_env_config():
-    cfg['TfL_API']['app_key'] = env_decrypt('TfLAPI_appkey')
-    cfg['TfL_API']['app_id'] = env_decrypt('TfLAPI_appid')
-    cfg['database']['host'] = env_decrypt('database_host')
-    cfg['database']['port'] = env_decrypt('database_port')
-    cfg['database']['user'] = env_decrypt('database_user')
-    cfg['database']['password'] = env_decrypt('database_password')
-    cfg['database']['name'] = env_decrypt('database_name')
+    cfg['TfL_API']['app_key'] = env_decrypt(os.environ['TfLAPI_appkey'])
+    cfg['TfL_API']['app_id'] = env_decrypt(os.environ['TfLAPI_appid'])
+    cfg['database']['host'] = env_decrypt(os.environ['database_host'])
+    cfg['database']['port'] = env_decrypt(os.environ['database_port'])
+    cfg['database']['user'] = env_decrypt(os.environ['database_user'])
+    cfg['database']['password'] = env_decrypt(os.environ['database_password'])
+    cfg['database']['name'] = env_decrypt(os.environ['database_name'])
     return cfg
 
 

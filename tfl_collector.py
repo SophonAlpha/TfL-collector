@@ -22,7 +22,10 @@ logger = None
 
 # set global variable to identify whether code runs locally or s AWS lambda
 # function
-REGION = os.environ.get('AWS_REGION', 'local')
+if os.environ.get('AWS_REGION', False):
+    RUN_ENV = 'AWS Lambda'
+else:
+    RUN_ENV = 'local'
 
 
 def main(event=None, context=None):
@@ -41,7 +44,7 @@ def set_up_logging():
     formatter = logging.Formatter(
         '%(asctime)s - %(levelname)s - %(filename)s - '
         '%(funcName)s - %(message)s')
-    if REGION == 'local':
+    if RUN_ENV == 'local':
         # if the code runs locally log to rotating log file
         handler = logging.handlers.RotatingFileHandler('tfl_collector.log',
                                                         maxBytes=104857600,
@@ -54,15 +57,22 @@ def set_up_logging():
 
 def take_measurement():
     logger.info('---------- script started ------------')
-    if REGION == 'local':
-        # read from local config file
-        args = parse_args()
-        cfg = load_config(args.config)
-    else:
-        # read from environment variables
-        cfg = load_env_config()
+    logger.info('run environment: \'{}\''.format(RUN_ENV))
+    cfg = get_script_config()
     TfLbikepoints.measurement(cfg)
     logger.info('---------- script completed ----------')
+
+
+def get_script_config():
+    cfg = None
+    if RUN_ENV == 'local':
+        # read from local config file
+        args = parse_args()
+        cfg = load_file_config(args.config)
+    elif RUN_ENV == 'AWS Lambda':
+        # read from environment variables
+        cfg = load_env_config()
+    return cfg
 
 
 def parse_args():
@@ -83,13 +93,20 @@ def load_file_config(config):
 
 
 def load_env_config():
-    cfg['TfL_API']['app_key'] = env_decrypt(os.environ['TfLAPI_appkey'])
-    cfg['TfL_API']['app_id'] = env_decrypt(os.environ['TfLAPI_appid'])
-    cfg['database']['host'] = env_decrypt(os.environ['database_host'])
-    cfg['database']['port'] = env_decrypt(os.environ['database_port'])
-    cfg['database']['user'] = env_decrypt(os.environ['database_user'])
-    cfg['database']['password'] = env_decrypt(os.environ['database_password'])
-    cfg['database']['name'] = env_decrypt(os.environ['database_name'])
+    cfg = {
+        'TfL_API': {
+            'app_key': env_decrypt(os.environ['TfLAPI_appkey']),
+            'app_id': env_decrypt(os.environ['TfLAPI_appid']),
+        },
+        'database': {
+            'host': env_decrypt(os.environ['database_host']),
+            'port': env_decrypt(os.environ['database_port']),
+            'user': env_decrypt(os.environ['database_user']),
+            'password': env_decrypt(os.environ['database_password']),
+            'name': env_decrypt(os.environ['database_name']),
+            'measurement': env_decrypt(os.environ['database_measurement']),
+        },
+    }
     return cfg
 
 

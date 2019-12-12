@@ -18,7 +18,9 @@ def measurement(cfg):
                            dbuser=cfg['database']['user'],
                            dbuser_password=cfg['database']['password'],
                            dbname=cfg['database']['name'])
-    prev_data = get_previous_measurement(db)
+    logger.info('InfluxDB measurement name: '
+                '\'{}\''.format(cfg['database']['measurement']))
+    prev_data = get_previous_measurement(db, cfg)
     cur_data = get_bike_points(cfg)
     time_stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
     data_sets = []
@@ -30,16 +32,18 @@ def measurement(cfg):
         # # causes out-of-memory error on small AWS Lightsail instance.
         tags = build_tags(fields, ['id'])
         data_sets.append((fields, tags))
-    save_data_set(db, data_sets, 'bike point', time_stamp)
+    save_data_set(db, cfg, data_sets, 'bike point', time_stamp)
     total_fields = calculate_totals(data_sets)
     tags = {}
     data_sets = [(total_fields, tags)]
-    save_data_set(db, data_sets, 'bike points total', time_stamp)
+    save_data_set(db, cfg, data_sets, 'bike points total', time_stamp)
 
 
-def get_previous_measurement(db):
+def get_previous_measurement(db, cfg):
     query = 'SELECT "NbDocks", "NbBikes", "NbEmptyDocks", "NbBrokenDocks" ' \
-            'FROM "BikePoints" GROUP BY id ORDER BY DESC LIMIT 1;'
+            'FROM "{}" GROUP BY id ' \
+            'ORDER BY DESC LIMIT 1;'.format(cfg['database']['measurement'])
+    logger.info('reading data set from previous measurement')
     result = db.client.query(query)
     result_series = result.raw.get('series', None)
     prev_data = {}
@@ -129,14 +133,15 @@ def build_tags(fields, fields_to_tags):
     return tags
 
 
-def save_data_set(db, data_set, set_name, time_stamp):
+def save_data_set(db, cfg, data_set, set_name, time_stamp):
     max_sets = len(data_set)
     nth_entry = max(max_sets // 20, 1)
     for idx, (fields, tags) in enumerate(data_set):
         if (idx + 1) % nth_entry == 0 or (idx + 1) == max_sets:
             logger.info('{} of {} {} data sets written '
                         'to database'.format(idx + 1, max_sets, set_name))
-        save_to_database(db, 'BikePoints', time_stamp, tags, fields)
+        save_to_database(db, cfg['database']['measurement'],
+                         time_stamp, tags, fields)
 
 
 def save_to_database(db, measurement, time_stamp, tags, fields):

@@ -113,6 +113,7 @@ def load_env_config():
 def env_decrypt(var_encrypted):
     cipher_text_blob = b64decode(var_encrypted)
     var_decrypted = boto3.client('kms').decrypt(CiphertextBlob=cipher_text_blob)['Plaintext']
+    var_decrypted = var_decrypted.decode('utf-8')
     return var_decrypted
 
 

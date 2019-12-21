@@ -4,4 +4,6 @@ AWS lambda package/
 *pycache*
 *.pyc
 *.log
+*.zip
+*.xlsx
 notes.txt

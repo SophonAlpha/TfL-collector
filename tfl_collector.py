@@ -1,26 +1,33 @@
+"""
+
+Script to collect data from the Transport for London open data portal
+(https://api-portal.tfl.gov.uk).
+
+Can be called from a command line:
+
+    python3 tfl_collector.py -config <configuration file>
+
+... or triggered as an AWS Lambda function. Function to be called is main().
+When called as a AWS Lambda function run parameters need to be configured as
+environment variables. See function load_env_config() for variable names.
+
+"""
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 
 import os
-import boto3
 import logging.handlers
-import urllib3
+from base64 import b64decode
 import argparse
+import boto3
 import yaml
 import TfLbikepoints
-from base64 import b64decode
 
-
-# Disable warnings for "Unverified HTTPS request is being made. Adding
-# certificate verification is strongly advised". We do this because we use a
-# self-signed certificate for HTTPS.
-urllib3.disable_warnings()
 
 # initialise global variable for logging object
-logger = None
-
-# set global variable to identify whether code runs locally or s AWS lambda
+LOGGER = None
+# set global variable to identify whether code runs locally or as AWS lambda
 # function
 if os.environ.get('AWS_REGION', False):
     RUN_ENV = 'AWS Lambda'
@@ -29,16 +36,29 @@ else:
 
 
 def main(event=None, context=None):
-    global logger
-    logger = set_up_logging()
+    """
+    Main function.
+
+    @param event: required by AWS Lambda but not used.
+    @param context: required by AWS Lambda but not used.
+    """
+
+    global LOGGER
+    LOGGER = set_up_logging()
     try:
         take_measurement()
     except Exception:
         # log any exception, required for troubleshooting
-        logger.exception('an unhandled exception occurred:')
+        LOGGER.exception('an unhandled exception occurred:')
 
 
 def set_up_logging():
+    """
+    Set up the logging object.
+
+    @return: logger object to be used throughout the script and it's sub-modules
+    """
+
     my_logger = logging.getLogger()
     my_logger.setLevel(logging.INFO)
     formatter = logging.Formatter(
@@ -47,8 +67,8 @@ def set_up_logging():
     if RUN_ENV == 'local':
         # if the code runs locally log to rotating log file
         handler = logging.handlers.RotatingFileHandler('tfl_collector.log',
-                                                        maxBytes=104857600,
-                                                        backupCount=1)
+                                                       maxBytes=104857600,
+                                                       backupCount=1)
         my_logger.addHandler(handler)
     for handler in my_logger.handlers:
         handler.setFormatter(formatter)
@@ -56,27 +76,42 @@ def set_up_logging():
 
 
 def take_measurement():
-    logger.info('---------- script started ------------')
-    logger.info('run environment: \'{}\''.format(RUN_ENV))
+    """
+    Take one measurement. The script is called in periodic intervals. Either
+    as cron job or via AWS CloudWatch timed trigger when running as AWS Lambda
+    function. One call collects one set of measurements.
+    """
+
+    LOGGER.info('---------- script started ------------')
+    LOGGER.info('run environment: \'{}\''.format(RUN_ENV))
     cfg = get_script_config()
     TfLbikepoints.measurement(cfg)
-    logger.info('---------- script completed ----------')
+    LOGGER.info('---------- script completed ----------')
 
 
 def get_script_config():
+    """
+    Read configuration parameters.
+
+    @return: dictionary object with configuration parameters
+    """
+
     cfg = None
     if RUN_ENV == 'local':
-        # read from local config file
+        # read from local config file, file needs to be in yaml format
         args = parse_args()
         cfg = load_file_config(args.config)
     elif RUN_ENV == 'AWS Lambda':
-        # read from environment variables
+        # read from AWS Lambda environment variables
         cfg = load_env_config()
     return cfg
 
 
 def parse_args():
-    """ parse the args from the command line call """
+    """
+    parse the args from the command line call
+    """
+
     parser = argparse.ArgumentParser(description='Collect data from Transport '
                                                  'for London (TfL) data portal.')
     parser.add_argument('-config', type=str, required=True,
@@ -85,14 +120,27 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_file_config(config):
-    logger.info('reading configuration file')
-    with open(config, 'r') as ymlfile:
+def load_file_config(cfg_file):
+    """
+    Read the yaml configuration file.
+
+    @param cfg_file: configuration file path and name
+    @return: dictionary object with configuration parameters
+    """
+
+    LOGGER.info('reading configuration file')
+    with open(cfg_file, 'r') as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
     return cfg
 
 
 def load_env_config():
+    """
+    Read configuration parameters from AWS Lambda environment variables.
+
+    @return: dictionary object with configuration parameters
+    """
+
     cfg = {
         'TfL_API': {
             'app_key': env_decrypt(os.environ['TfLAPI_appkey']),
@@ -111,6 +159,13 @@ def load_env_config():
 
 
 def env_decrypt(var_encrypted):
+    """
+    Decrypt AWS Lambda environment variables.
+
+    @param var_encrypted: encrypted environment variable
+    @return: decrypted environment variable
+    """
+
     cipher_text_blob = b64decode(var_encrypted)
     var_decrypted = boto3.client('kms').decrypt(CiphertextBlob=cipher_text_blob)['Plaintext']
     var_decrypted = var_decrypted.decode('utf-8')

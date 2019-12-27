@@ -5,7 +5,7 @@ Script to collect data from the Transport for London open data portal
 
 Can be called from a command line:
 
-    python3 tfl_collector.py -config <configuration file>
+    python3 collector.py -config <configuration file>
 
 ... or triggered as an AWS Lambda function. Function to be called is main().
 When called as a AWS Lambda function run parameters need to be configured as
@@ -22,7 +22,7 @@ from base64 import b64decode
 import argparse
 import boto3
 import yaml
-import TfLbikepoints
+import tflbikepoints
 
 
 # initialise global variable for logging object
@@ -85,7 +85,7 @@ def take_measurement():
     LOGGER.info('---------- script started ------------')
     LOGGER.info('run environment: \'{}\''.format(RUN_ENV))
     cfg = get_script_config()
-    TfLbikepoints.measurement(cfg)
+    tflbikepoints.measurement(cfg)
     LOGGER.info('---------- script completed ----------')
 
 

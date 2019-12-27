@@ -1,0 +1,10 @@
+TfL_API:
+    app_key: <your TfL API key>
+    app_id: <your TfL API ID>
+database:
+    host: <host address for InfluxDB server>
+    port: 8086
+    user: <user ID for InfluxDB access>
+    password: <password for InfluxDB access>
+    name: <database name>
+    measurement: <measurement name>

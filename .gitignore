@@ -6,4 +6,4 @@ AWS lambda package/
 *.log
 *.zip
 *.xlsx
-notes.txt
+docs/notes.txt

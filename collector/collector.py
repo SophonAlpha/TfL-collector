@@ -22,11 +22,9 @@ from base64 import b64decode
 import argparse
 import boto3
 import yaml
-import tflbikepoints
+import collector.tflbikepoints
 
 
-# initialise global variable for logging object
-LOGGER = None
 # set global variable to identify whether code runs locally or as AWS lambda
 # function
 if os.environ.get('AWS_REGION', False):
@@ -43,8 +41,6 @@ def main(event=None, context=None):
     @param context: required by AWS Lambda but not used.
     """
 
-    global LOGGER
-    LOGGER = set_up_logging()
     try:
         take_measurement()
     except Exception:
@@ -66,7 +62,7 @@ def set_up_logging():
         '%(funcName)s - %(message)s')
     if RUN_ENV == 'local':
         # if the code runs locally log to rotating log file
-        handler = logging.handlers.RotatingFileHandler('tfl_collector.log',
+        handler = logging.handlers.RotatingFileHandler(f'{os.path.basename(__file__)}.log',
                                                        maxBytes=104857600,
                                                        backupCount=1)
         my_logger.addHandler(handler)
@@ -172,5 +168,6 @@ def env_decrypt(var_encrypted):
     return var_decrypted
 
 
+LOGGER = set_up_logging()
 if __name__ == '__main__':
     main()

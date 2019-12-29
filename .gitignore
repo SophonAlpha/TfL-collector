@@ -6,4 +6,7 @@ AWS lambda package/
 *.log
 *.zip
 *.xlsx
+*.coverage
+*,cover
+*htmlcov
 *notes.txt

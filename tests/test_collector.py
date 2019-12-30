@@ -12,8 +12,11 @@ coverage test ('pip install pytest-cov'):
 
 import pytest
 import sys
+import re
 
 from collector import collector
+from tflbikepoints import tflbikepoints
+import influxdatabase
 
 TARGET_CFG = [
     {
@@ -39,6 +42,28 @@ def test_get_script_config(target_cfg, pytestconfig):
     sys.argv = ['', '-config', pytestconfig.getoption('config')]
     cfg = collector.get_script_config()
     assert cmp_dict_keys(cfg, target_cfg)
+
+
+def test_get_db(pytestconfig):
+    """ tests """
+    sys.argv = ['', '-config', pytestconfig.getoption('config')]
+    cfg = collector.get_script_config()
+    db = tflbikepoints.get_db(cfg)
+    assert isinstance(db, influxdatabase.database.Database)
+
+
+def test_get_previous_measurement(pytestconfig):
+    """ tests """
+    sys.argv = ['', '-config', pytestconfig.getoption('config')]
+    cfg = collector.get_script_config()
+    db = tflbikepoints.get_db(cfg)
+    prev_data = tflbikepoints.get_previous_measurement(db, cfg)
+    regexec = re.compile(r'BikePoints_.*')
+    assert all([isinstance(regexec.match(key), re.Match) for key in prev_data.keys()])
+    expected_attributes = set(['time', 'NbDocks', 'NbBikes', 'NbEmptyDocks',
+                              'NbBrokenDocks'])
+    first_key = list(prev_data.keys())[0]
+    assert set(prev_data[first_key].keys()) == expected_attributes
 
 
 def cmp_dict_keys(d1, d2):

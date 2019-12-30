@@ -15,8 +15,8 @@ import sys
 import re
 
 from collector import collector
-from tflbikepoints import tflbikepoints
-import influxdatabase
+import collector.tflbikepoints
+import collector.influxdatabase
 
 TARGET_CFG = [
     {
@@ -40,30 +40,71 @@ TARGET_CFG = [
 def test_get_script_config(target_cfg, pytestconfig):
     """ tests """
     sys.argv = ['', '-config', pytestconfig.getoption('config')]
-    cfg = collector.get_script_config()
+    cfg = collector.collector.get_script_config()
     assert cmp_dict_keys(cfg, target_cfg)
 
 
-def test_get_db(pytestconfig):
-    """ tests """
-    sys.argv = ['', '-config', pytestconfig.getoption('config')]
-    cfg = collector.get_script_config()
-    db = tflbikepoints.get_db(cfg)
-    assert isinstance(db, influxdatabase.database.Database)
+def test_measurement(pytestconfig):
+    """
+    Test the sequence of actions. Each step is dependent on the previous step.
+    Therefore all actions in one test.
+    """
 
+    #  test get_db()
 
-def test_get_previous_measurement(pytestconfig):
-    """ tests """
     sys.argv = ['', '-config', pytestconfig.getoption('config')]
-    cfg = collector.get_script_config()
-    db = tflbikepoints.get_db(cfg)
+    cfg = collector.collector.get_script_config()
+    db = collector.tflbikepoints.get_db(cfg)
+
+    assert isinstance(db, collector.influxdatabase.database.Database)
+
+    #  test get_previous_measurement()
+
     prev_data = tflbikepoints.get_previous_measurement(db, cfg)
     regexec = re.compile(r'BikePoints_.*')
     assert all([isinstance(regexec.match(key), re.Match) for key in prev_data.keys()])
     expected_attributes = set(['time', 'NbDocks', 'NbBikes', 'NbEmptyDocks',
                               'NbBrokenDocks'])
     first_key = list(prev_data.keys())[0]
-    assert set(prev_data[first_key].keys()) == expected_attributes
+    assert set(prev_data[first_key].keys()) == expected_attributes or \
+           prev_data is None
+
+    #  test get_bike_points()
+
+    cur_data = tflbikepoints.get_bike_points(cfg)
+    assert isinstance(cur_data, list)
+    expected_attributes = set(['$type', 'id', 'url', 'commonName', 'placeType',
+                               'additionalProperties', 'children',
+                               'childrenUrls', 'lat', 'lon'])
+    assert set(cur_data[0].keys()) == expected_attributes
+
+    #  test build_fields()
+
+    fields = tflbikepoints.build_fields(cur_data[0])
+    expected_attributes = set([
+        'id', 'commonName', 'lon', 'lat', 'TerminalName',
+        'TerminalName_modified', 'Installed', 'Installed_modified', 'Locked',
+        'Locked_modified', 'InstallDate', 'InstallDate_modified', 'RemovalDate',
+        'RemovalDate_modified', 'Temporary', 'Temporary_modified', 'NbBikes',
+        'NbBikes_modified', 'NbEmptyDocks', 'NbEmptyDocks_modified', 'NbDocks',
+        'NbDocks_modified'])
+    assert set(fields.keys()) == expected_attributes
+
+    #  test calculate_fields()
+
+    fields = tflbikepoints.calculate_fields(fields, prev_data)
+    expected_attributes = set([
+        'id', 'commonName', 'lon', 'lat', 'TerminalName',
+        'TerminalName_modified', 'Installed', 'Installed_modified',
+        'Locked', 'Locked_modified', 'InstallDate','InstallDate_modified',
+        'RemovalDate', 'RemovalDate_modified', 'Temporary',
+        'Temporary_modified', 'NbBikes', 'NbBikes_modified', 'NbEmptyDocks',
+        'NbEmptyDocks_modified', 'NbDocks', 'NbDocks_modified', 'NbBrokenDocks',
+        'percentage_NbBikes', 'percentage_NbEmptyDocks',
+        'percentage_NbBrokenDocks', 'delta_NbDocks', 'delta_NbBikes',
+        'delta_NbEmptyDocks', 'delta_NbBrokenDocks', 'abs_NbDocks',
+        'abs_NbBikes', 'abs_NbEmptyDocks', 'abs_NbBrokenDocks'])
+    assert set(fields.keys()) == expected_attributes
 
 
 def cmp_dict_keys(d1, d2):

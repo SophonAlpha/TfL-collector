@@ -22,7 +22,7 @@ from base64 import b64decode
 import argparse
 import boto3
 import yaml
-import collector.tflbikepoints
+import collector.tflbikepoints as tflbikepoints
 
 
 # set global variable to identify whether code runs locally or as AWS lambda

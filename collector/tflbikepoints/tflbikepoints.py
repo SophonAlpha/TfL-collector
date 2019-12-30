@@ -8,22 +8,7 @@ import requests
 import datetime
 import time
 
-
 logger = logging.getLogger()
-
-
-def test_write_influxdb_cloud():
-    bucket = 'InfluxDB_Bucket'
-    org = 'Sagittarius'
-    InfluxDB_Cloud_url = 'https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/write?org={}&bucket={}&precision=s'.format(
-        org, bucket)
-    access_token = 'ZJc2JU9iPdaFIilVFD-T8HDTdkuDP63Y5b2eDgBq84S7OMCS1tykC43rIBjYYbAKIYbQdae8jFRO6_UaNlTn6g=='
-    authorization = 'Token {}'.format(access_token)
-    time_stamp = int(time.mktime(datetime.datetime.utcnow().timetuple()))
-    raw_data = 'BikePoints,id=BikePoint_01 nbBikes=3 {}'.format(time_stamp)
-    response = requests.post(InfluxDB_Cloud_url,
-                             headers={'Authorization': authorization},
-                             data=raw_data)
 
 
 def measurement(cfg):

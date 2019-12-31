@@ -15,8 +15,8 @@ import sys
 import re
 
 from collector import collector
-import collector.tflbikepoints
-import collector.influxdatabase
+from tflbikepoints import tflbikepoints
+from influxdatabase import database
 
 TARGET_CFG = [
     {
@@ -40,7 +40,7 @@ TARGET_CFG = [
 def test_get_script_config(target_cfg, pytestconfig):
     """ tests """
     sys.argv = ['', '-config', pytestconfig.getoption('config')]
-    cfg = collector.collector.get_script_config()
+    cfg = collector.get_script_config()
     assert cmp_dict_keys(cfg, target_cfg)
 
 
@@ -53,10 +53,10 @@ def test_measurement(pytestconfig):
     #  test get_db()
 
     sys.argv = ['', '-config', pytestconfig.getoption('config')]
-    cfg = collector.collector.get_script_config()
-    db = collector.tflbikepoints.get_db(cfg)
+    cfg = collector.get_script_config()
+    db = tflbikepoints.get_db(cfg)
 
-    assert isinstance(db, collector.influxdatabase.database.Database)
+    assert isinstance(db, database.Database)
 
     #  test get_previous_measurement()
 

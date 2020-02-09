@@ -16,12 +16,14 @@ environment variables. See function load_env_config() for variable names.
 # -*- coding: utf-8 -*-
 
 
-import os
-import logging.handlers
-from base64 import b64decode
 import argparse
+import os
+
+from base64 import b64decode
 import boto3
+import logging.handlers
 import yaml
+
 import collector.tflbikepoints as tflbikepoints
 
 
@@ -62,9 +64,9 @@ def set_up_logging():
         '%(funcName)s - %(message)s')
     if RUN_ENV == 'local':
         # if the code runs locally log to rotating log file
-        handler = logging.handlers.RotatingFileHandler(f'{os.path.basename(__file__)}.log',
-                                                       maxBytes=104857600,
-                                                       backupCount=1)
+        handler = logging.handlers.RotatingFileHandler(
+            f'{os.path.basename(__file__)}.log', maxBytes=104857600,
+            backupCount=1)
         my_logger.addHandler(handler)
     for handler in my_logger.handlers:
         handler.setFormatter(formatter)

@@ -3,17 +3,36 @@
 
 
 import logging
+import database
 import requests
 import datetime
 import time
+from statistics import mean
 
-from collector.influxdatabase import database
 
 logger = logging.getLogger()
 
 
+def test_write_Influxdb_Cloud():
+    bucket = 'InfluxDB_Bucket'
+    org = 'Sagittarius'
+    InfluxDB_Cloud_url = 'https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/write?org={}&bucket={}&precision=s'.format(
+        org, bucket)
+    access_token = 'ZJc2JU9iPdaFIilVFD-T8HDTdkuDP63Y5b2eDgBq84S7OMCS1tykC43rIBjYYbAKIYbQdae8jFRO6_UaNlTn6g=='
+    authorization = 'Token {}'.format(access_token)
+    time_stamp = int(time.mktime(datetime.datetime.utcnow().timetuple()))
+    raw_data = 'BikePoints,id=BikePoint_01 nbBikes=3 {}'.format(time_stamp)
+    response = requests.post(InfluxDB_Cloud_url,
+                             headers={'Authorization': authorization},
+                             data=raw_data)
+
+
 def measurement(cfg):
-    db = get_db(cfg)
+    db = database.Database(host=cfg['database']['host'],
+                           port=cfg['database']['port'],
+                           dbuser=cfg['database']['user'],
+                           dbuser_password=cfg['database']['password'],
+                           dbname=cfg['database']['name'])
     logger.info('InfluxDB measurement name: '
                 '\'{}\''.format(cfg['database']['measurement']))
     prev_data = get_previous_measurement(db, cfg)
@@ -23,6 +42,9 @@ def measurement(cfg):
     for entry in cur_data:
         fields = build_fields(entry)
         fields = calculate_fields(fields, prev_data)
+        # tags = {}
+        # # Tags deactivated. Believed the tags create series cardinality that
+        # # causes out-of-memory error on small AWS Lightsail instance.
         tags = build_tags(fields, ['id'])
         data_sets.append((fields, tags))
     save_data_set(db, cfg, data_sets, 'bike point', time_stamp)
@@ -30,15 +52,6 @@ def measurement(cfg):
     tags = {}
     data_sets = [(total_fields, tags)]
     save_data_set(db, cfg, data_sets, 'bike points total', time_stamp)
-
-
-def get_db(cfg):
-    db = database.Database(host=cfg['database']['host'],
-                           port=cfg['database']['port'],
-                           dbuser=cfg['database']['user'],
-                           dbuser_password=cfg['database']['password'],
-                           dbname=cfg['database']['name'])
-    return db
 
 
 def get_previous_measurement(db, cfg):

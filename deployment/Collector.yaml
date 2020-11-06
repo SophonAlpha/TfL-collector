@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+
+  CollectorSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Collector server
+      GroupName: CollectorSecurityGroup
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000 # Grafana
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8086 # InfluxDB
+          ToPort: 8086
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22 # SSH
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  CollectorServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t4g.small
+      ImageId: ami-03ec287fa560a6ccc # Ubuntu Server 20.04 LTS (HVM), SSD Volume Type
+      KeyName: collector-server
+      SecurityGroupIds:
+        - !Ref CollectorSecurityGroup
+      IamInstanceProfile: !Ref DeploymentBucketInstanceProfile
+
+  DeploymentBucketInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles: [!Ref DeploymentBucketRole]
+
+  DeploymentBucketRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+
+  ReadDeploymentBucketPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ReadDeploymentBucketPolicy
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: 's3:List*'
+            Resource: 'arn:aws:s3:::collector-deployment-bucket-m1mgfnap'
+      Roles:
+        - !Ref DeploymentBucketRole
+
+

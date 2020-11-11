@@ -1,4 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
+
 Resources:
 
   DeploymentBucket:
@@ -14,6 +15,7 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+
   DeploymentBucketPolicy:
     DependsOn:
       - DeploymentBucket

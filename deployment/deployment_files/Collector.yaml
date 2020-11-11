@@ -1,4 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
+
 Resources:
 
   CollectorSecurityGroup:
@@ -22,13 +23,29 @@ Resources:
 
   CollectorServer:
     Type: AWS::EC2::Instance
+    DependsOn:
+      - DeploymentBucketInstanceProfile
+      - DeploymentBucketRole
+      - ReadDeploymentBucketPolicy
     Properties:
-      InstanceType: t4g.small
-      ImageId: ami-03ec287fa560a6ccc # Ubuntu Server 20.04 LTS (HVM), SSD Volume Type
+      InstanceType: t3.small
+      ImageId: ami-06fd8a495a537da8b # Ubuntu Server 20.04 LTS (HVM), SSD Volume Type
       KeyName: collector-server
       SecurityGroupIds:
         - !Ref CollectorSecurityGroup
       IamInstanceProfile: !Ref DeploymentBucketInstanceProfile
+      UserData:
+        !Base64 |
+        #!/bin/bash
+        # log UserData script output, source: https://alestic.com/2010/12/ec2-user-data-output/
+        exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+        echo ----- start UserData script -----
+        sudo apt-get update
+        sudo apt-get upgrade -y
+        sudo apt-get install awscli -y
+        echo ----- call install.sh script -----
+        aws s3 cp s3://collector-deployment-bucket-m1mgfnap/deployment/install.sh - | bash
+        echo ----- end UserData script -----
 
   DeploymentBucketInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -54,9 +71,17 @@ Resources:
       PolicyDocument:
         Statement:
           - Effect: Allow
-            Action: 's3:List*'
-            Resource: 'arn:aws:s3:::collector-deployment-bucket-m1mgfnap'
+            Action: [
+                's3:List*',
+                's3:GetObject'
+            ]
+            Resource: [
+                'arn:aws:s3:::collector-deployment-bucket-m1mgfnap',
+                'arn:aws:s3:::*/*'
+            ]
       Roles:
         - !Ref DeploymentBucketRole
 
-
+Outputs:
+  CollectorServerIP4DNS:
+    Value: !GetAtt CollectorServer.PublicDnsName

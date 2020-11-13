@@ -42,12 +42,11 @@ sudo adduser influxdb eurydika_certs
 sudo adduser grafana eurydika_certs
 sudo chown influxdb:eurydika_certs /etc/ssl/sagittarius_eurydika_de.*
 sudo systemctl restart influxdb
-# sudo systemctl restart grafana-server
 
 echo ----- restore InfluxDB database -----
 sudo aws s3 cp s3://collector-deployment-bucket-m1mgfnap/backup_InfluxDB/ /home/ubuntu/backup_InfluxDB/ --recursive
 influxd restore -portable /home/ubuntu/backup_InfluxDB/
-sudo rm -r backup_InfluxDB/
+sudo rm -r /home/ubuntu/backup_InfluxDB/
 
 echo ----- configure InfluxDB users -----
 sudo apt-get install jq -y
@@ -60,7 +59,6 @@ cmd='aws ssm get-parameters --region '$region' --names /Collector/InfluxDB_Users
 grafana_uid=$(eval $cmd)
 cmd='aws ssm get-parameters --region '$region' --names /Collector/InfluxDB_Users --with-decryption --query '"'"'Parameters[0].Value'"'"' | jq '"'"'.|fromjson'"'"' | jq --raw-output '"'"'.collector_InfluxDB_grafana_pw'"'"''
 grafana_pw=$(eval $cmd)
-grafana_pw="'"$grafana_pw"'"
 influx -ssl -host sagittarius.eurydika.de -execute 'CREATE USER '$admin_uid' WITH PASSWORD '"'"$admin_pw"'"' WITH ALL PRIVILEGES'
 influx -username $admin_uid -password $admin_pw -ssl -host sagittarius.eurydika.de -execute 'CREATE USER '$grafana_uid' WITH PASSWORD '"'"$grafana_pw"'"''
 influx -username $admin_uid -password $admin_pw -ssl -host sagittarius.eurydika.de -execute 'USE TfL'

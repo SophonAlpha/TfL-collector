@@ -24,16 +24,22 @@ Resources:
   CollectorServer:
     Type: AWS::EC2::Instance
     DependsOn:
-      - DeploymentBucketInstanceProfile
-      - DeploymentBucketRole
-      - ReadDeploymentBucketPolicy
+      - DeploymentProfile
+      - DeploymentRole
+      - DeploymentPolicy
     Properties:
       InstanceType: t3.small
       ImageId: ami-06fd8a495a537da8b # Ubuntu Server 20.04 LTS (HVM), SSD Volume Type
       KeyName: collector-server
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: '20'
+            Encrypted: 'true'
       SecurityGroupIds:
         - !Ref CollectorSecurityGroup
-      IamInstanceProfile: !Ref DeploymentBucketInstanceProfile
+      IamInstanceProfile: !Ref DeploymentProfile
       UserData:
         !Base64 |
         #!/bin/bash
@@ -47,13 +53,13 @@ Resources:
         aws s3 cp s3://collector-deployment-bucket-m1mgfnap/deployment/install.sh - | bash
         echo ----- end UserData script -----
 
-  DeploymentBucketInstanceProfile:
+  DeploymentProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
-      Roles: [!Ref DeploymentBucketRole]
+      Roles: [!Ref DeploymentRole]
 
-  DeploymentBucketRole:
+  DeploymentRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -64,23 +70,25 @@ Resources:
             Action: ['sts:AssumeRole']
       Path: /
 
-  ReadDeploymentBucketPolicy:
+  DeploymentPolicy:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: ReadDeploymentBucketPolicy
+      PolicyName: DeploymentPolicy
       PolicyDocument:
         Statement:
           - Effect: Allow
             Action: [
                 's3:List*',
-                's3:GetObject'
+                's3:GetObject',
+                'ssm:GetParameters'
             ]
             Resource: [
                 'arn:aws:s3:::collector-deployment-bucket-m1mgfnap',
-                'arn:aws:s3:::*/*'
+                'arn:aws:s3:::*/*',
+                'arn:aws:ssm:eu-west-1:060337561279:parameter/Collector/InfluxDB_Users',
             ]
       Roles:
-        - !Ref DeploymentBucketRole
+        - !Ref DeploymentRole
 
 Outputs:
   CollectorServerIP4DNS:

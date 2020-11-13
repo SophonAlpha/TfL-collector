@@ -9,7 +9,7 @@ profile_deployment_account = 'workaccount'
 profile_DNS_account = 'dns_account'
 
 # ----- deploy collector server
-print('Deploying stack for collector server.')
+print('Deploying stack for collector application.')
 cf_session = boto3.session.Session(profile_name=profile_deployment_account).client('cloudformation')
 response = cf_session.create_stack(
     StackName='Collector',
@@ -54,3 +54,7 @@ response = route53_session.change_resource_record_sets(
 )
 print(f'Route53 DNS hosted zone update completed with '
       f'HTTP status code: {response["ResponseMetadata"]["HTTPStatusCode"]}')
+
+print(f'Waiting for URL https://sagittarius.eurydika.de:3000/ to become active ... ')
+response = cloudformationtools.wait_for_url('https://sagittarius.eurydika.de:3000/', 300)
+print(f'URL check returned HTTPS code: {response}')

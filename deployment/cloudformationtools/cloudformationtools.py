@@ -2,7 +2,8 @@
 Tool functions for CloudFormation scripts.
 """
 
-import boto3
+import urllib.request
+import ssl
 import time
 import progressbar
 
@@ -60,3 +61,31 @@ def monitor_stack_deployment(cf_session, stack_name):
         done = stack_status in stack_complete or stack_status in stack_failed
     bar.finish()
     return stack_status
+
+
+def wait_for_url(url, max_wait):
+
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    widgets = [
+        progressbar.Bar(), ' ',
+        progressbar.Timer()
+    ]
+    bar = progressbar.ProgressBar(
+        widgets=widgets,
+        maxval=max_wait,
+    )
+    for i in range(max_wait):
+        bar.update(i)
+        try:
+            response = urllib.request.urlopen(url, context=ctx).getcode()
+        except urllib.error.URLError:
+            time.sleep(1)
+        else:
+            if response == 200:
+                break
+    bar.finish()
+    if response != 200:
+        print(f'Timeout! No response from URL within {max_wait} seconds.')
+    return response

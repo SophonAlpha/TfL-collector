@@ -24,7 +24,6 @@ sudo apt-get install grafana
 sudo systemctl daemon-reload
 sudo systemctl enable grafana-server
 sudo aws s3 cp s3://collector-deployment-bucket-m1mgfnap/deployment/grafana.ini /etc/grafana/
-# sudo systemctl start grafana-server
 
 echo ----- install SSL certificates -----
 sudo apt-get install ca-certificates -y
@@ -66,7 +65,7 @@ influx -username $admin_uid -password $admin_pw -ssl -host sagittarius.eurydika.
 
 echo ----- restore Grafana database -----
 sudo systemctl stop grafana-server
-sudo aws s3 cp s3://collector-deployment-bucket-m1mgfnap/Grafana_backup/var/lib/ /var/lib/ --recursive
+sudo aws s3 cp s3://collector-deployment-bucket-m1mgfnap/backup_Grafana/var/lib/ /var/lib/ --recursive
 sudo chown -R grafana:grafana /var/lib/grafana
 sudo systemctl start grafana-server
 

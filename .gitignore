@@ -9,3 +9,7 @@
 *,cover
 *htmlcov
 *notes.txt
+
+# Build folder
+**/.aws-sam/**
+**/build/**

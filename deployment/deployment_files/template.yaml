@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Collector App
+
+  SAM Template for deploying the Collector Lambda function.
+
+Resources:
+
+#  HelloWorldFunction:
+#    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+#    Properties:
+#      CodeUri: hello_world/
+#      Handler: app.lambda_handler
+#      Runtime: python3.8
+
+  CollectorFunction:
+      Type: AWS::Serverless::Function
+      Properties:
+        CodeUri: ../../collector/
+        Description: collector lambda function
+        FunctionName: collector
+        Handler: collector.main
+        MemorySize: 128
+#        Role: !GetAtt LambdaRole.Arn
+        Runtime: python3.8
+        Timeout: 60
+        Layers:
+          - !Ref InfluxDBLayer
+          - !Ref PyYamlLayer
+
+  InfluxDBLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: InfluxDB
+      Description: InfluxDB Python library
+      ContentUri: layer_influxdb.zip
+      CompatibleRuntimes:
+        - python3.8
+      RetentionPolicy: Delete
+
+  PyYamlLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: PyYaml
+      Description: PyYaml Python library
+      ContentUri: layer_pyyaml.zip
+      CompatibleRuntimes:
+        - python3.8
+      RetentionPolicy: Delete

@@ -1,5 +1,5 @@
 """
-Tool functions for CloudFormation scripts.
+Tool functions for deployment scripts.
 """
 
 import urllib.request

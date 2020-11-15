@@ -7,7 +7,7 @@ import requests
 import datetime
 import time
 
-from collector.influxdatabase import database
+from influxdatabase import database
 
 logger = logging.getLogger()
 

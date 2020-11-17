@@ -23,9 +23,12 @@ from base64 import b64decode
 import boto3
 import logging.handlers
 import yaml
+import json
 
-import collector.tflbikepoints as tflbikepoints
+import tflbikepoints.tflbikepoints as tflbikepoints
 
+
+ssm_client = boto3.client('ssm')
 
 # set global variable to identify whether code runs locally or as AWS lambda
 # function
@@ -101,7 +104,8 @@ def get_script_config():
         cfg = load_file_config(args.config)
     elif RUN_ENV == 'AWS Lambda':
         # read from AWS Lambda environment variables
-        cfg = load_env_config()
+        # cfg = load_env_config()
+        cfg = load_SSMParameters_config()
     return cfg
 
 
@@ -155,6 +159,19 @@ def load_env_config():
     }
     return cfg
 
+def load_SSMParameters_config():
+    """
+    Read configuration parameters from SSM Parameter Store.
+
+    @return: dictionary object with configuration parameters
+    """
+
+    response = ssm_client.get_parameter(
+        Name=os.environ['SSMParameterStorePath']
+    )
+    cfg = json.loads(response['Parameter']['Value'])
+
+    return cfg
 
 def env_decrypt(var_encrypted):
     """

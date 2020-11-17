@@ -5,10 +5,11 @@
 import logging
 import requests
 import datetime
-import time
+import urllib3
 
 from influxdatabase import database
 
+urllib3.disable_warnings()
 logger = logging.getLogger()
 
 

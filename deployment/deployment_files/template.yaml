@@ -19,15 +19,19 @@ Resources:
       Properties:
         CodeUri: ../../collector/
         Description: collector lambda function
-        FunctionName: collector
+        FunctionName: test-collector
         Handler: collector.main
         MemorySize: 128
 #        Role: !GetAtt LambdaRole.Arn
         Runtime: python3.8
         Timeout: 60
-        Layers:
-          - !Ref InfluxDBLayer
-          - !Ref PyYamlLayer
+#        Layers:
+#          - arn:aws:lambda:eu-west-1:060337561279:layer:PyYaml:2
+#          - arn:aws:lambda:eu-west-1:060337561279:layer:InfluxDB:2
+#          - !GetAtt InfluxDBLayer.Arn
+#          - !GetAtt PyYamlLayer.Arn
+#          - !Ref InfluxDBLayer
+#          - !Ref PyYamlLayer
 
   InfluxDBLayer:
     Type: AWS::Serverless::LayerVersion

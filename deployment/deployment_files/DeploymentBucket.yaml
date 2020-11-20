@@ -9,7 +9,6 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
-      BucketName: collector-deployment-bucket-m1mgfnap
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -83,3 +82,15 @@ Resources:
               - !Sub 'arn:${AWS::Partition}:s3:::${DeploymentBucket}'
               - !Sub 'arn:${AWS::Partition}:s3:::${DeploymentBucket}/*'
             Sid: DenyGrantingPublicRead
+
+  SSMParameterDeploymentBucket:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: Name of S3 bucket for deployment files for Collector application.
+      Name: /Collector/deployment/S3bucket
+      Value: !Ref DeploymentBucket
+      Type: String
+
+Outputs:
+  DeploymentBucketName:
+    Value: !Ref DeploymentBucket

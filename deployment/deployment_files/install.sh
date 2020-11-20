@@ -43,29 +43,30 @@ sudo chown influxdb:eurydika_certs /etc/ssl/sagittarius_eurydika_de.*
 sudo systemctl restart influxdb
 
 echo ----- restore InfluxDB database -----
-sudo aws s3 cp s3://collector-deployment-bucket-m1mgfnap/backup_InfluxDB/ /home/ubuntu/backup_InfluxDB/ --recursive
+sudo aws s3 cp s3://collector-deployment-bucket-m1mgfnap/backup_InfluxDB/ /home/ubuntu/backup_InfluxDB/ --recursive --no-progress
 influxd restore -portable /home/ubuntu/backup_InfluxDB/
 sudo rm -r /home/ubuntu/backup_InfluxDB/
 
 echo ----- configure InfluxDB users -----
 sudo apt-get install jq -y
 region=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq --raw-output .region)
-cmd='aws ssm get-parameters --region '$region' --names /Collector/InfluxDB_Users --with-decryption --query '"'"'Parameters[0].Value'"'"' | jq '"'"'.|fromjson'"'"' | jq --raw-output '"'"'.collector_InfluxDB_admin_uid'"'"''
+cmd='aws ssm get-parameters --region '$region' --names /Collector/parameters --query '"'"'Parameters[0].Value'"'"' | jq '"'"'.|fromjson'"'"' | jq --raw-output '"'"'.InfluxDB.admin_uid'"'"''
 admin_uid=$(eval $cmd)
-cmd='aws ssm get-parameters --region '$region' --names /Collector/InfluxDB_Users --with-decryption --query '"'"'Parameters[0].Value'"'"' | jq '"'"'.|fromjson'"'"' | jq --raw-output '"'"'.collector_InfluxDB_admin_pw'"'"''
+cmd='aws ssm get-parameters --region '$region' --names /Collector/parameters --query '"'"'Parameters[0].Value'"'"' | jq '"'"'.|fromjson'"'"' | jq --raw-output '"'"'.InfluxDB.admin_pw'"'"''
 admin_pw=$(eval $cmd)
-cmd='aws ssm get-parameters --region '$region' --names /Collector/InfluxDB_Users --with-decryption --query '"'"'Parameters[0].Value'"'"' | jq '"'"'.|fromjson'"'"' | jq --raw-output '"'"'.collector_InfluxDB_grafana_uid'"'"''
+cmd='aws ssm get-parameters --region '$region' --names /Collector/parameters --query '"'"'Parameters[0].Value'"'"' | jq '"'"'.|fromjson'"'"' | jq --raw-output '"'"'.database.user'"'"''
 grafana_uid=$(eval $cmd)
-cmd='aws ssm get-parameters --region '$region' --names /Collector/InfluxDB_Users --with-decryption --query '"'"'Parameters[0].Value'"'"' | jq '"'"'.|fromjson'"'"' | jq --raw-output '"'"'.collector_InfluxDB_grafana_pw'"'"''
+cmd='aws ssm get-parameters --region '$region' --names /Collector/parameters --query '"'"'Parameters[0].Value'"'"' | jq '"'"'.|fromjson'"'"' | jq --raw-output '"'"'.database.password'"'"''
 grafana_pw=$(eval $cmd)
 influx -ssl -host sagittarius.eurydika.de -execute 'CREATE USER '$admin_uid' WITH PASSWORD '"'"$admin_pw"'"' WITH ALL PRIVILEGES'
 influx -username $admin_uid -password $admin_pw -ssl -host sagittarius.eurydika.de -execute 'CREATE USER '$grafana_uid' WITH PASSWORD '"'"$grafana_pw"'"''
 influx -username $admin_uid -password $admin_pw -ssl -host sagittarius.eurydika.de -execute 'USE TfL'
 influx -username $admin_uid -password $admin_pw -ssl -host sagittarius.eurydika.de -execute 'GRANT ALL ON "TfL" TO "grafana"'
+influx -username $admin_uid -password $admin_pw -ssl -host sagittarius.eurydika.de -execute 'SHOW USERS'
 
 echo ----- restore Grafana database -----
 sudo systemctl stop grafana-server
-sudo aws s3 cp s3://collector-deployment-bucket-m1mgfnap/backup_Grafana/var/lib/ /var/lib/ --recursive
+sudo aws s3 cp s3://collector-deployment-bucket-m1mgfnap/backup_Grafana/var/lib/ /var/lib/ --recursive --no-progress
 sudo chown -R grafana:grafana /var/lib/grafana
 sudo systemctl start grafana-server
 

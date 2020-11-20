@@ -1,9 +1,33 @@
 
 # Todos:
-#   add tags
-#   for Lambda function configure CloudWatch log retention to 3 months
+#   - parametrize
+#   - in DeploymentBucket.yaml: write deployment S3 bucket to SSM parameter store
+#   - read deployment S3 bucket from SSM parameter store
+#   - add backup to S3
 
 AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+
+  EC2ImageID:
+    Type: AWS::EC2::Image::Id
+    Default: ami-06fd8a495a537da8b
+    Description: >-
+      Ubuntu Server 20.04 LTS (HVM), SSD Volume Type
+  EC2InstanceTypeID:
+    Type: String
+    Default: t3.small
+    Description: >-
+      2 vCPUs; x86_64; 2,048 MiB memory
+  SSHKeyName:
+    Type: String
+    Default: collector-server
+  DeploymentS3Bucket:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /Collector/deployment/S3bucket
+  DeploymentS3Prefix:
+    Type: String
+    Default: deployment/
 
 Resources:
 
@@ -11,7 +35,6 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Collector server
-#      GroupName: CollectorSecurityGroup
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 3000 # Grafana
@@ -36,15 +59,18 @@ Resources:
       - DeploymentRole
       - DeploymentPolicy
     Properties:
-      InstanceType: t3.small
-      ImageId: ami-06fd8a495a537da8b # Ubuntu Server 20.04 LTS (HVM), SSD Volume Type
-      KeyName: collector-server
+      InstanceType:
+        Ref: EC2InstanceTypeID
+      ImageId:
+        Ref: EC2ImageID
+      KeyName:
+        Ref: SSHKeyName
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
             VolumeType: gp2
-            VolumeSize: '20'
-            Encrypted: 'true'
+            VolumeSize: 20
+            Encrypted: true
       SecurityGroupIds:
         - !Ref CollectorSecurityGroup
       IamInstanceProfile: !Ref DeploymentProfile
@@ -79,7 +105,9 @@ Resources:
           - Effect: Allow
             Principal:
               Service: [ec2.amazonaws.com]
-            Action: ['sts:AssumeRole']
+            Action: [
+                'sts:AssumeRole'
+            ]
       Path: /
       Tags:
         - Key: application
@@ -93,113 +121,26 @@ Resources:
         Statement:
           - Effect: Allow
             Action: [
-                's3:List*',
-                's3:GetObject',
-                'ssm:GetParameters'
+                "s3:List*",
+                "s3:GetObject",
+                "ssm:GetParameters"
             ]
             Resource: [
-                'arn:aws:s3:::collector-deployment-bucket-m1mgfnap',
-                'arn:aws:s3:::*/*',
-                'arn:aws:ssm:eu-west-1:060337561279:parameter/Collector/InfluxDB_Users',
+                "arn:aws:s3:::collector-deployment-bucket-m1mgfnap",
+                "arn:aws:s3:::*/*",
+                "arn:aws:ssm:eu-west-1:060337561279:parameter/Collector/parameters",
             ]
       Roles:
         - !Ref DeploymentRole
 
-  LambdaRole:
-    Type: "AWS::IAM::Role"
+  CollectorLambda:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            Principal:
-              Service:
-                - "lambda.amazonaws.com"
-            Action:
-              - "sts:AssumeRole"
-      Policies:
-        - PolicyName: 'ParameterStoreAccess'
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - 'ssm:GetParameter*'
-                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Collector/parameters*'
+      TemplateURL: !Sub "https://${DeploymentS3Bucket}.s3-eu-west-1.amazonaws.com/${DeploymentS3Prefix}CollectorLambda.yaml"
+      TimeoutInMinutes: 60
       Tags:
         - Key: application
           Value: Collector
-
-  CollectorFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      Code:
-        S3Bucket: collector-deployment-bucket-m1mgfnap
-        S3Key: deployment/lambda_collector.zip
-      Description: collector lambda function
-      FunctionName: collector
-      Handler: collector.main
-      MemorySize: 128
-      Role: !GetAtt LambdaRole.Arn
-      Runtime: python3.8
-      Timeout: 60
-      Layers:
-        - !Ref InfluxDBLayer
-        - !Ref PyYamlLayer
-      Environment:
-        Variables:
-          SSMParameterStorePath: '/Collector/parameters'
-      Tags:
-        - Key: application
-          Value: Collector
-
-  InfluxDBLayer:
-    Type: AWS::Lambda::LayerVersion
-    Properties:
-      CompatibleRuntimes:
-        - python3.8
-      Content:
-        S3Bucket: collector-deployment-bucket-m1mgfnap
-        S3Key: deployment/layer_influxdb.zip
-      Description: InfluxDB Python library
-      LayerName: InfluxDB
-
-  PyYamlLayer:
-    Type: AWS::Lambda::LayerVersion
-    Properties:
-      CompatibleRuntimes:
-        - python3.8
-      Content:
-        S3Bucket: collector-deployment-bucket-m1mgfnap
-        S3Key: deployment/layer_pyyaml.zip
-      Description: PyYaml Python library
-      LayerName: PyYaml
-
-  TimerTriggerLambda:
-    Type: AWS::Events::Rule
-    Properties:
-      Description: Timed trigger for starting collector Lambda function
-      ScheduleExpression: rate(10 minutes)
-      State: DISABLED
-      Targets:
-        - Arn:
-            Fn::GetAtt:
-              - CollectorFunction
-              - Arn
-          Id: CollectorFunction
-
-  PermissionInvokeLambda:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref CollectorFunction
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn:
-        Fn::GetAtt:
-          - TimerTriggerLambda
-          - Arn
 
 Outputs:
   CollectorServerIP4DNS:

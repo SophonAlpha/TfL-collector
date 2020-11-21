@@ -38,7 +38,8 @@ def get_db(cfg):
                            port=cfg['database']['port'],
                            dbuser=cfg['database']['user'],
                            dbuser_password=cfg['database']['password'],
-                           dbname=cfg['database']['name'])
+                           dbname=cfg['database']['name'],
+                           timeout=10)
     return db
 
 

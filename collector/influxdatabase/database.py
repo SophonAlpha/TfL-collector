@@ -11,10 +11,11 @@ logger = logging.getLogger()
 
 class Database:
 
-    def __init__(self, host, port, dbuser, dbuser_password, dbname):
+    def __init__(self, host, port, dbuser, dbuser_password, dbname, *args, **kwargs):
         self.client = InfluxDBClient(host=host, port=port, ssl=True,
                                      username=dbuser, password=dbuser_password,
-                                     database=dbname)
+                                     database=dbname,
+                                     *args, **kwargs)
         logger.info('database configuration: host: {}:{}, '
                     'user: {}, database: {}'.format(host, port,
                                                     dbuser, dbname))

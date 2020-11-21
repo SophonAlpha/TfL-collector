@@ -1,9 +1,6 @@
 
 # Todos:
-#   - parametrize
-#   - in DeploymentBucket.yaml: write deployment S3 bucket to SSM parameter store
-#   - read deployment S3 bucket from SSM parameter store
-#   - add backup to S3
+#   - add backup to S3 for InfluxDB and Grafana DBs
 
 AWSTemplateFormatVersion: "2010-09-09"
 
@@ -75,17 +72,17 @@ Resources:
         - !Ref CollectorSecurityGroup
       IamInstanceProfile: !Ref DeploymentProfile
       UserData:
-        !Base64 |
-        #!/bin/bash
-        # log UserData script output, source: https://alestic.com/2010/12/ec2-user-data-output/
-        exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-        echo ----- start UserData script -----
-        sudo apt-get update
-        sudo apt-get upgrade -y
-        sudo apt-get install awscli -y
-        echo ----- call install.sh script -----
-        aws s3 cp s3://collector-deployment-bucket-m1mgfnap/deployment/install.sh - | bash
-        echo ----- end UserData script -----
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # log UserData script output, source: https://alestic.com/2010/12/ec2-user-data-output/
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          echo ----- start UserData script -----
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          sudo apt-get install awscli -y
+          echo ----- call install.sh script -----
+          aws s3 cp s3://${DeploymentS3Bucket}/deployment/install.sh - | bash
+          echo ----- end UserData script -----
       Tags:
         - Key: application
           Value: Collector
@@ -115,6 +112,8 @@ Resources:
 
   DeploymentPolicy:
     Type: AWS::IAM::Policy
+    DependsOn:
+      - BackupBucket
     Properties:
       PolicyName: DeploymentPolicy
       PolicyDocument:
@@ -125,18 +124,29 @@ Resources:
                 "s3:GetObject",
                 "ssm:GetParameters"
             ]
-            Resource: [
-                "arn:aws:s3:::collector-deployment-bucket-m1mgfnap",
-                "arn:aws:s3:::*/*",
-                "arn:aws:ssm:eu-west-1:060337561279:parameter/Collector/parameters",
-            ]
+            Resource:
+              - !Sub "arn:aws:s3:::${DeploymentS3Bucket}"
+              - !Sub
+                - "arn:aws:s3:::${Name}"
+                - Name: !GetAtt BackupBucket.Outputs.BackupBucketName
+              - "arn:aws:s3:::*/*"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Collector/*"
       Roles:
         - !Ref DeploymentRole
 
-  CollectorLambda:
+  LambdaFunction:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${DeploymentS3Bucket}.s3-eu-west-1.amazonaws.com/${DeploymentS3Prefix}CollectorLambda.yaml"
+      TemplateURL: !Sub "https://${DeploymentS3Bucket}.s3-${AWS::Region}.amazonaws.com/${DeploymentS3Prefix}Lambda.yaml"
+      TimeoutInMinutes: 60
+      Tags:
+        - Key: application
+          Value: Collector
+
+  BackupBucket:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${DeploymentS3Bucket}.s3-${AWS::Region}.amazonaws.com/${DeploymentS3Prefix}BackupBucket.yaml"
       TimeoutInMinutes: 60
       Tags:
         - Key: application

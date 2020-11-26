@@ -75,13 +75,19 @@ Resources:
           #!/bin/bash
           # log UserData script output, source: https://alestic.com/2010/12/ec2-user-data-output/
           exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          echo -----
           echo ----- start UserData script -----
+          echo -----
           sudo apt-get update
           sudo apt-get upgrade -y
           sudo apt-get install awscli -y
+          echo -----
           echo ----- call install.sh script -----
+          echo -----
           aws s3 cp s3://${DeploymentS3Bucket}/deployment/install.sh - | bash
+          echo -----
           echo ----- end UserData script -----
+          echo -----
 
   DeploymentProfile:
     Type: AWS::IAM::InstanceProfile
@@ -113,17 +119,27 @@ Resources:
         Statement:
           - Effect: Allow
             Action: [
-                "s3:List*",
+                "s3:ListBucket",
                 "s3:GetObject",
-                "ssm:GetParameters"
+                "ssm:GetParameters",
             ]
             Resource:
+              - !Sub "arn:aws:s3:::${DeploymentS3Bucket}/*"
               - !Sub "arn:aws:s3:::${DeploymentS3Bucket}"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Collector/*"
+          - Effect: Allow
+            Action: [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:ListBucket",
+            ]
+            Resource:
+              - !Sub
+                - "arn:aws:s3:::${Name}/*"
+                - Name: !GetAtt BackupBucket.Outputs.BackupBucketName
               - !Sub
                 - "arn:aws:s3:::${Name}"
                 - Name: !GetAtt BackupBucket.Outputs.BackupBucketName
-              - "arn:aws:s3:::*/*"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Collector/*"
       Roles:
         - !Ref DeploymentRole
 

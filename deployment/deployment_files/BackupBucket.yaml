@@ -1,3 +1,5 @@
+# todo: configure infrequent access storage class
+
 AWSTemplateFormatVersion: "2010-09-09"
 
 Resources:

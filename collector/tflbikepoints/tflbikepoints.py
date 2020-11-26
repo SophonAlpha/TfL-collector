@@ -39,7 +39,7 @@ def get_db(cfg):
                            dbuser=cfg['database']['user'],
                            dbuser_password=cfg['database']['password'],
                            dbname=cfg['database']['name'],
-                           timeout=10)
+                           timeout=30)
     return db
 
 

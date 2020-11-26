@@ -45,9 +45,6 @@ Resources:
           FromPort: 22 # SSH
           ToPort: 22
           CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: application
-          Value: Collector
 
   CollectorServer:
     Type: AWS::EC2::Instance
@@ -60,6 +57,8 @@ Resources:
         Ref: EC2InstanceTypeID
       ImageId:
         Ref: EC2ImageID
+      HibernationOptions:
+        Configured: true
       KeyName:
         Ref: SSHKeyName
       BlockDeviceMappings:
@@ -83,9 +82,6 @@ Resources:
           echo ----- call install.sh script -----
           aws s3 cp s3://${DeploymentS3Bucket}/deployment/install.sh - | bash
           echo ----- end UserData script -----
-      Tags:
-        - Key: application
-          Value: Collector
 
   DeploymentProfile:
     Type: AWS::IAM::InstanceProfile
@@ -106,9 +102,6 @@ Resources:
                 'sts:AssumeRole'
             ]
       Path: /
-      Tags:
-        - Key: application
-          Value: Collector
 
   DeploymentPolicy:
     Type: AWS::IAM::Policy
@@ -139,18 +132,12 @@ Resources:
     Properties:
       TemplateURL: !Sub "https://${DeploymentS3Bucket}.s3-${AWS::Region}.amazonaws.com/${DeploymentS3Prefix}Lambda.yaml"
       TimeoutInMinutes: 60
-      Tags:
-        - Key: application
-          Value: Collector
 
   BackupBucket:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub "https://${DeploymentS3Bucket}.s3-${AWS::Region}.amazonaws.com/${DeploymentS3Prefix}BackupBucket.yaml"
       TimeoutInMinutes: 60
-      Tags:
-        - Key: application
-          Value: Collector
 
 Outputs:
   CollectorServerIP4DNS:

@@ -35,9 +35,6 @@ Resources:
                 Action:
                   - 'ssm:GetParameter*'
                 Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Collector/parameters*'
-      Tags:
-        - Key: application
-          Value: Collector
 
   CollectorFunction:
     Type: AWS::Lambda::Function
@@ -58,9 +55,6 @@ Resources:
       Environment:
         Variables:
           SSMParameterStorePath: '/Collector/parameters'
-      Tags:
-        - Key: application
-          Value: Collector
 
   InfluxDBLayer:
     Type: AWS::Lambda::LayerVersion

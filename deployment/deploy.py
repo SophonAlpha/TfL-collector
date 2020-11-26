@@ -2,8 +2,6 @@
 Master script for the deployment of the TfL Bike Sharing collector application.
 """
 
-# TODO: remove dependency on profile_name=profile_deployment_account
-
 import boto3
 from deployment.deploymenttools import deploymenttools
 
@@ -11,7 +9,7 @@ profile_deployment_account = 'workaccount'
 profile_DNS_account = 'dns_account'
 
 # ----- get name of deployment S3 bucket
-ssm_session = boto3.session.Session(profile_name=profile_deployment_account).client('ssm')
+ssm_session = boto3.session.Session().client('ssm')
 response = ssm_session.get_parameter(
         Name='/Collector/deployment/S3bucket'
     )
@@ -19,10 +17,16 @@ deployment_bucket = response['Parameter']['Value']
 
 # ----- deploy collector server
 print('Deploying stack for collector application.')
-cf_session = boto3.session.Session(profile_name=profile_deployment_account).client('cloudformation')
+cf_session = boto3.session.Session().client('cloudformation')
 response = cf_session.create_stack(
     StackName='Collector',
     TemplateURL=f'https://{deployment_bucket}.s3-eu-west-1.amazonaws.com/deployment/Collector.yaml',
+    Tags=[
+        {
+            'Key': 'application',
+            'Value': 'Collector',
+        },
+    ],
     Capabilities=['CAPABILITY_NAMED_IAM']
 )
 stack_status = deploymenttools.monitor_stack_deployment(cf_session, 'Collector')

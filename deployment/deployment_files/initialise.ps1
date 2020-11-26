@@ -15,7 +15,7 @@ While ((-Not $done) -And (-Not ($count -ge $max_count))) {
     $count = $count + 1
 }
 
-# get the name of the S3 bucket just crteated
+# get the name of the S3 bucket just created
 $DeploymentBucket = (aws ssm get-parameters --names /Collector/deployment/S3bucket --query "Parameters[0].Value" --output text --profile workaccount)
 Write-Host "Deployment S3 bucket name: " $DeploymentBucket
 

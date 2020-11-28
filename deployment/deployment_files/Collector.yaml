@@ -1,7 +1,3 @@
-
-# Todos:
-#   - add backup to S3 for InfluxDB and Grafana DBs
-
 AWSTemplateFormatVersion: "2010-09-09"
 
 Parameters:

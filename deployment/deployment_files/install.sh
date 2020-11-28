@@ -95,8 +95,10 @@ echo ----- set up backup -----
 echo -----
 sudo apt-get install zip -y
 sudo aws s3 cp s3://$deployment_bucket/deployment/InfluxDB_Grafana_backup.sh /home/ubuntu/scripts/
+sudo chmod +x /home/ubuntu/scripts/InfluxDB_Grafana_backup.sh
 sudo aws s3 cp s3://$deployment_bucket/deployment/InfluxDB_Grafana_backup.crontab /home/ubuntu/scripts/
 crontab -l | cat - /home/ubuntu/scripts/InfluxDB_Grafana_backup.crontab > crontab.txt && crontab crontab.txt
+crontab -l
 
 echo -----
 echo ----- system restart to apply any updates that require reboot -----

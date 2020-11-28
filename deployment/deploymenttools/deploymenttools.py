@@ -69,7 +69,7 @@ def wait_for_url(url, max_wait):
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     widgets = [
-        progressbar.Bar(), ' ',
+        progressbar.BouncingBar(), ' ',
         progressbar.Timer()
     ]
     bar = progressbar.ProgressBar(

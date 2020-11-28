@@ -1,6 +1,10 @@
 #!/bin/bash
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
+echo -----
+echo ----- backup started -----
+echo -----
+
 # get parameters
 region=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq --raw-output .region)
 cmd='aws ssm get-parameters --region '$region' --names /Collector/backup/S3bucket --query '"'"'Parameters[0].Value'"'"' --output text'
@@ -17,6 +21,10 @@ rm -r /home/ubuntu/backup_InfluxDB/
 echo -----
 echo ----- backup Grafana -----
 echo -----
-sudo aws s3 sync /var/lib/grafana/ s3://$backup_bucket/Grafana_backup_$backup_time/var/lib/grafana/ --sse AES256 --recursive --no-progress
-sudo aws s3 cp /var/log/grafana/ s3://$backup_bucket/Grafana_backup_$backup_time/var/log/grafana/ --sse AES256 --recursive --no-progress
-sudo aws s3 cp /etc/grafana/ s3://$backup_bucket/Grafana_backup_$backup_time/etc/grafana/ --sse AES256 --recursive --no-progress
+sudo aws s3 sync /var/lib/grafana/ s3://$backup_bucket/backup_Grafana_$backup_time/var/lib/grafana/ --sse AES256 --no-progress
+sudo aws s3 sync /var/log/grafana/ s3://$backup_bucket/backup_Grafana_$backup_time/var/log/grafana/ --sse AES256 --no-progress
+sudo aws s3 sync /etc/grafana/ s3://$backup_bucket/backup_Grafana_$backup_time/etc/grafana/ --sse AES256 --no-progress
+
+echo -----
+echo ----- backup completed -----
+echo -----

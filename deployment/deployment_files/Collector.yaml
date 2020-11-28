@@ -24,120 +24,15 @@ Parameters:
 
 Resources:
 
-  CollectorSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Collector server
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 3000 # Grafana
-          ToPort: 3000
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 8086 # InfluxDB
-          ToPort: 8086
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22 # SSH
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-
   CollectorServer:
-    Type: AWS::EC2::Instance
-    DependsOn:
-      - DeploymentProfile
-      - DeploymentRole
-      - DeploymentPolicy
-    Properties:
-      InstanceType:
-        Ref: EC2InstanceTypeID
-      ImageId:
-        Ref: EC2ImageID
-      HibernationOptions:
-        Configured: true
-      KeyName:
-        Ref: SSHKeyName
-      BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            VolumeType: gp2
-            VolumeSize: 20
-            Encrypted: true
-      SecurityGroupIds:
-        - !Ref CollectorSecurityGroup
-      IamInstanceProfile: !Ref DeploymentProfile
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          # log UserData script output, source: https://alestic.com/2010/12/ec2-user-data-output/
-          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-          echo -----
-          echo ----- start UserData script -----
-          echo -----
-          sudo apt-get update
-          sudo apt-get upgrade -y
-          sudo apt-get install awscli -y
-          echo -----
-          echo ----- call install.sh script -----
-          echo -----
-          aws s3 cp s3://${DeploymentS3Bucket}/deployment/install.sh - | bash
-          echo -----
-          echo ----- end UserData script -----
-          echo -----
-
-  DeploymentProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: /
-      Roles:
-        - !Ref DeploymentRole
-
-  DeploymentRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: [ec2.amazonaws.com]
-            Action: [
-                'sts:AssumeRole'
-            ]
-      Path: /
-
-  DeploymentPolicy:
-    Type: AWS::IAM::Policy
+    Type: AWS::CloudFormation::Stack
     DependsOn:
       - BackupBucket
     Properties:
-      PolicyName: DeploymentPolicy
-      PolicyDocument:
-        Statement:
-          - Effect: Allow
-            Action: [
-                "s3:ListBucket",
-                "s3:GetObject",
-                "ssm:GetParameters",
-            ]
-            Resource:
-              - !Sub "arn:aws:s3:::${DeploymentS3Bucket}/*"
-              - !Sub "arn:aws:s3:::${DeploymentS3Bucket}"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Collector/*"
-          - Effect: Allow
-            Action: [
-                "s3:GetObject",
-                "s3:PutObject",
-                "s3:ListBucket",
-            ]
-            Resource:
-              - !Sub
-                - "arn:aws:s3:::${Name}/*"
-                - Name: !GetAtt BackupBucket.Outputs.BackupBucketName
-              - !Sub
-                - "arn:aws:s3:::${Name}"
-                - Name: !GetAtt BackupBucket.Outputs.BackupBucketName
-      Roles:
-        - !Ref DeploymentRole
+      TemplateURL: !Sub "https://${DeploymentS3Bucket}.s3-${AWS::Region}.amazonaws.com/${DeploymentS3Prefix}Server.yaml"
+      TimeoutInMinutes: 60
+      Parameters:
+        BackupBucketName: !GetAtt BackupBucket.Outputs.BackupBucketName
 
   LambdaFunction:
     Type: AWS::CloudFormation::Stack
@@ -153,4 +48,4 @@ Resources:
 
 Outputs:
   CollectorServerIP4DNS:
-    Value: !GetAtt CollectorServer.PublicDnsName
+    Value: !GetAtt CollectorServer.Outputs.CollectorServerIP4DNS

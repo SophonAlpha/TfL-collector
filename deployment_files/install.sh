@@ -93,7 +93,7 @@ sudo systemctl start grafana-server
 echo -----
 echo ----- set up backup -----
 echo -----
-sudo apt-get install zip -y
+sudo apt-get install zip unzip -y
 sudo aws s3 cp s3://$deployment_bucket/deployment/InfluxDB_Grafana_backup.sh /home/ubuntu/scripts/
 sudo chmod +x /home/ubuntu/scripts/InfluxDB_Grafana_backup.sh
 sudo aws s3 cp s3://$deployment_bucket/deployment/InfluxDB_Grafana_backup.crontab /home/ubuntu/scripts/

@@ -1,6 +1,6 @@
 # create deployment S3 bucket
 $stack_name = "CollectorDeploymentBucket"
-aws cloudformation create-stack --stack-name $stack_name --template-body file://$PSScriptRoot/DeploymentBucket.yaml --profile workaccount
+aws cloudformation create-stack --stack-name $stack_name --template-body file://$PSScriptRoot/deployment_files/DeploymentBucket.yaml --profile workaccount
 
 # Wait for stack creation to cpmplete
 Write-Host "Waiting for stack creation to complete ..."
@@ -20,12 +20,12 @@ $DeploymentBucket = (aws ssm get-parameters --names /Collector/deployment/S3buck
 Write-Host "Deployment S3 bucket name: " $DeploymentBucket
 
 # upload files required for deployment
-& 'C:\Program Files\7-Zip\7z.exe' a -r $PSScriptRoot\lambda_collector.zip $PSScriptRoot\..\..\collector\*
-aws s3 cp $PSScriptRoot s3://$DeploymentBucket/deployment --recursive --sse AES256 --profile workaccount
+& 'C:\Program Files\7-Zip\7z.exe' a -r $PSScriptRoot\deployment_files\lambda_collector.zip $PSScriptRoot\collector\*
+aws s3 cp $PSScriptRoot/deployment_files s3://$DeploymentBucket/deployment --recursive --sse AES256 --profile workaccount
 
 # Upload security files (e.g. certificates) required for deployment that are stored outside
 # the code repository.
-aws s3 cp $PSScriptRoot\..\..\..\_secure_configs\collector\deployment_files s3://$DeploymentBucket/deployment --recursive --sse AES256 --profile workaccount
+aws s3 cp $PSScriptRoot\..\_secure_configs\collector\deployment_files s3://$DeploymentBucket/deployment --recursive --sse AES256 --profile workaccount
 
 # copies of InfluxDb and Grafana database backups need to be copied manually to the
 # deployment S3 bucket

@@ -2,8 +2,10 @@
 Master script for the deployment of the TfL Bike Sharing collector application.
 """
 
+# TODO: remove regon specifics
+
 import boto3
-from deployment.deploymenttools import deploymenttools
+import deployment_tools
 
 profile_deployment_account = 'workaccount'
 profile_DNS_account = 'dns_account'
@@ -29,7 +31,7 @@ response = cf_session.create_stack(
     ],
     Capabilities=['CAPABILITY_NAMED_IAM']
 )
-stack_status = deploymenttools.monitor_stack_deployment(cf_session, 'Collector')
+stack_status = deployment_tools.monitor_stack_deployment(cf_session, 'Collector')
 print(f'Stack deployment completed with stack status: {stack_status}')
 
 # ----- get collector server IP4 DNS name
@@ -69,5 +71,5 @@ print(f'Route53 DNS hosted zone update completed with '
       f'HTTP status code: {response["ResponseMetadata"]["HTTPStatusCode"]}')
 
 print(f'Waiting for URL https://sagittarius.eurydika.de:3000/ to come online ... ')
-response = deploymenttools.wait_for_url('https://sagittarius.eurydika.de:3000/', 300)
+response = deployment_tools.wait_for_url('https://sagittarius.eurydika.de:3000/', 300)
 print(f'URL check returned HTTPS code: {response}')

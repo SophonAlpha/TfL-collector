@@ -23,7 +23,7 @@ echo ----- backup InfluxDB -----
 echo -----
 influxd backup -portable /home/ubuntu/backup_InfluxDB/
 zip -r -m /home/ubuntu/backup/backup_InfluxDB.zip /home/ubuntu/backup_InfluxDB/*
-aws s3 cp /home/ubuntu/backup/backup_InfluxDB.zip s3://$backup_bucket/backup_InfluxDB/InfluxDB_backup_$backup_time.zip --sse AES256 --no-progress
+aws s3 cp /home/ubuntu/backup/backup_InfluxDB.zip s3://$backup_bucket/backup_InfluxDB/backup_InfluxDB_$backup_time.zip --sse AES256 --no-progress
 
 echo -----
 echo ----- backup Grafana -----

@@ -1,0 +1,1 @@
+python $PSScriptRoot\deployment_tools\deploy.py

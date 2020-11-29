@@ -12,18 +12,26 @@ backup_bucket=$(eval $cmd)
 backup_time=$(eval 'date +%Y-%m-%d_%H-%M-%S')
 
 echo -----
+echo ----- remove previous local backup files -----
+echo -----
+rm -r /home/ubuntu/backup_InfluxDB/
+rm -r /home/ubuntu/backup/
+mkdir /home/ubuntu/backup
+
+echo -----
 echo ----- backup InfluxDB -----
 echo -----
 influxd backup -portable /home/ubuntu/backup_InfluxDB/
-aws s3 cp /home/ubuntu/backup_InfluxDB/ s3://$backup_bucket/backup_InfluxDB_$backup_time/ --sse AES256 --recursive --no-progress
-rm -r /home/ubuntu/backup_InfluxDB/
+zip -r -m /home/ubuntu/backup/backup_InfluxDB.zip /home/ubuntu/backup_InfluxDB/*
+aws s3 cp /home/ubuntu/backup/backup_InfluxDB.zip s3://$backup_bucket/backup_InfluxDB/InfluxDB_backup_$backup_time.zip --sse AES256 --no-progress
 
 echo -----
 echo ----- backup Grafana -----
 echo -----
-sudo aws s3 sync /var/lib/grafana/ s3://$backup_bucket/backup_Grafana_$backup_time/var/lib/grafana/ --sse AES256 --no-progress
-sudo aws s3 sync /var/log/grafana/ s3://$backup_bucket/backup_Grafana_$backup_time/var/log/grafana/ --sse AES256 --no-progress
-sudo aws s3 sync /etc/grafana/ s3://$backup_bucket/backup_Grafana_$backup_time/etc/grafana/ --sse AES256 --no-progress
+sudo zip -r /home/ubuntu/backup/backup_Grafana.zip /var/lib/grafana/*
+sudo zip -r /home/ubuntu/backup/backup_Grafana.zip /var/log/grafana/*
+sudo zip -r /home/ubuntu/backup/backup_Grafana.zip /etc/grafana/*
+aws s3 cp /home/ubuntu/backup/backup_Grafana.zip s3://$backup_bucket/backup_Grafana/backup_Grafana_$backup_time.zip --sse AES256 --no-progress
 
 echo -----
 echo ----- backup completed -----
